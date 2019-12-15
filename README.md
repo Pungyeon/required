@@ -3,6 +3,9 @@
 ## Introduction
 So, recently at work, one our junior engineers asked me a question: "How do I create required fields for structures in Go, when parsing from JavaScript?". Now, I haven't done much work with API's in Go, so I'm actually not sure what the idiomatic solution for this is, however, delving into the topic turned out interesting. It's a perfect example of Go as an expressive language and how it allows you to approach problems from many different angles, despite it's sometimes restrictive nature. This article will describe some of these approached, by describing a few different techniques and methods for overcoming this issue without generics.
 
+## Where to find the code
+You are probably already on github, but in case you are not, you can find all the final code of each section here: https://github.com/Pungyeon/required
+
 ## The Simple Approach
 So to begin with, let's discuss the most important part of solving this issues. We should never overcomplicate a solution. Always choose the solution, which is the most straight forward. In other words "Keep It Simple Stupid". So let's assume that our issue is that we have the following JSON object, we wish to parse:
 
@@ -459,6 +462,11 @@ type Stats struct {
     Tweets required.Int64
 }
 ```
-## Summary
 
+This seems a lot tidier, from the perspective of whomever is implementing these fields on the structs. It's a lot of code to get this point, but the ROI does become apparent, the more that you use it. 
+
+## Summary
+The last solution might seem exiting because of the usage of reflect and how it ended up being a rather generic solution. However, keep in mind, that the complexity of the code has hugely increased. The debugging ease and general type safety of the code, has also dimished significantly. This is quite a big trade-off and therefore the last solution is by no means perfect, nor suited for every situation. As said previously, the right solution for a task, depends very much on the task. If we know that we are going to use the `required` package throughout our code base with hundreds of structs. Then it's probably appropriate to development and implement, however, if we are only talking about ensuring requirements for a few fields. Then the more manual method of checking the required fields is much more appropriate. 
+
+I hope that this article gave you some insight into some different techniques of approaching an issue, using Go and all feedback is extremely welcome. Thank you so much for spending your time reading this. If you want to keep up-to-date on my articles, be sure to follow me on Twitter @ifndef_lmj. Thanks again!
 
