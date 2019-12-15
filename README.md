@@ -354,4 +354,111 @@ Running these tests however, gives us the following output:
 
 Wait? What the fuck? So it turns out, that life is just not that simple in the land of Go. The reason for this, is that when we pass the `"{}"` JSON string, the `json.Unmarshal` will ignore the fields which aren't present. This means that because the the `name` property doesn't appear in the JSON, the `UnmarshalJSON` function is never called, as it is completely skipped. Therefore, we never actually get a chance to check whether our required field actually contains anything, and therefore our tests fail miserably. 
 
+This means, that we need to find a way of checking whether our parsed required struct's values are empty. However, we don't want to go back to the validation strategy, as this would render our progress completely redundant. Therefore, we will need to find a way of doing this somewhat generically, while still using Go. You might have already seen this coming, but I still hate to say this... we are going to have to use the `reflect` package :grimacing:
+
+Our approach will be to use our strategy from earlier in this article. First we will invoke the `json.Unmarshal` function, then our own function:
+
+```go
+// ReturnIfError will iterate over a variadac error and return
+// an error if the given value is not nil
+func ReturnIfError(errs ...error) error {
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Unmarshal is a wrapping function of the json.Unmarshal function
+func Unmarshal(data []byte, v interface{}) error {
+	return ReturnIfError(
+		json.Unmarshal(data, v),
+		CheckValues(v),
+	)
+}
+```
+
+So far so good. But, now we can no longer avoid our confrontation with the `reflect` package:
+
+```go
+// CheckValues will check the values of a given interface and ensure
+// that if it contains a required struct, that the required values
+// are not empty
+func CheckValues(v interface{}) error {
+	vo := reflect.ValueOf(v)
+	for vo.Kind() == reflect.Ptr {
+		vo = vo.Elem()
+	}
+	return CheckStructIsRequired(vo)
+}
+```
+
+The code above is relatively simple. We are accepting an `interface{}`. We are then checking if this value is a pointer. If it is a pointer, we will call the `Elem()` function, which will return the value of the pointer. We will keep doing this, until we have an actual value. Once we have the value, we will pass it to the next function `CheckStructIsRequired`:
+
+```go
+// CheckStructIsRequired will inspect the given reflect.Value. If it contains
+// a required struct, it will check it's content, if it contains a struct
+// it will recursively invoke the function once more, if none of these apply
+// nil will be returned.
+func CheckStructIsRequired(vo reflect.Value) error {
+	if vo.Kind() != reflect.Struct {
+		return nil
+	}
+	for i := 0; i < vo.NumField(); i++ {
+		vtf := vo.Field(i)
+		switch vtf.Type() {
+		case reflect.TypeOf(String{}):
+			return checkRequiredValue(vtf)
+		}
+		if vtf.Kind() == reflect.Struct {
+			if err := CheckStructIsRequired(vtf); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+```
+
+In this function we will iterate all the fields of our struct contained in the given `reflect.Value`. For each field, we will check if the `Type()` is equal to our required `String` type. If it is, then we will continue to check the values in the `checkRequiredValue`. If the value is not a required type, we will check whether it's a struct. If it is, we will recursively invoke our `CheckStructIsRequired`, but if it isn't we will just continue our for loop. So, the only thing we have left to look at is our `checkRequiredValue` function:
+
+```go
+func checkRequiredValue(vo reflect.Value) error {
+	for i := 0; i < vo.NumField(); i++ {
+		vtf := vo.Field(i)
+		switch vtf.Kind() {
+		case reflect.String:
+			if vtf.Len() == 0 {
+				return ErrStringEmpty
+			}
+		}
+	}
+	return nil
+}
+```
+Once again, we will iterate over the properties of the given `reflect.Value` and then, using a switch statement, determine the type of our property. In our current case, we are only interested in `string` values. Also, fortunately, all we need to do, to check whether the value has been set, is by checking the length of the given value. If the value is `0`, then we can conclude that the value definitely hasn't been set. 
+
+If we use our `UnmarshalJSON` function in our tests, instead of the `json.Unmarshal` function, we can now see our tests passing. Which is wonderful. We can also remove the check from our `UnmarshalJSON` implementation on our `String` struct, as this is now superfluous. 
+
+Of course, this solution isn't particularly complete, but it's a good start. All we need to do to support other types, is to implement the `UnmarshalJSON` and `MarshalJSON` interface methods and then include the type in our switch statement, in the `checkRequiredValue` function. I can recommend looking into the package 
+"github.com/davecgh/go-spew/spew", if you want to look at a more full implementation, using a lot of the same techniques as described here. 
+
+Either way, the end goal of this implementation type, is to allow developers to use our package (let's call it `required`), to 'tag' struct properties as required JSON field. The structs ending up looking something like the following:
+
+```go
+type User struct {
+    FirstName required.String
+    LastName required.String
+    JobTitle required.String
+    Twitter required.String
+    Stats Stats
+}
+
+type Stats struct {
+    Tweets required.Int64
+}
+```
+## Summary
+
 

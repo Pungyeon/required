@@ -2,37 +2,56 @@ package required
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 )
 
+// ReturnIfError will iterate over a variadac error and return
+// an error if the given value is not nil
+func ReturnIfError(errs ...error) error {
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Unmarshal is a wrapping function of the json.Unmarshal function
 func Unmarshal(data []byte, v interface{}) error {
 	return ReturnIfError(
 		json.Unmarshal(data, v),
-		Required(v),
+		CheckValues(v),
 	)
 }
 
-func Required(v interface{}) error {
+// CheckValues will check the values of a given interface and ensure
+// that if it contains a required struct, that the required values
+// are not empty
+func CheckValues(v interface{}) error {
 	vo := reflect.ValueOf(v)
 	for vo.Kind() == reflect.Ptr {
 		vo = vo.Elem()
 	}
-	return CheckRequired(vo)
+	return CheckStructIsRequired(vo)
 }
 
-func CheckRequired(vo reflect.Value) error {
-	if vo.Kind() == reflect.Struct {
-		numFields := vo.NumField()
-		for i := 0; i < numFields; i++ {
-			vtf := vo.Field(i)
-			fmt.Println(vtf.Type().String())
-			switch vtf.Type().String() {
-			case "required.String":
-				return checkRequiredValue(vtf)
-			}
-			if vtf.Kind() == reflect.Struct {
-				CheckRequired(vtf)
+// CheckStructIsRequired will inspect the given reflect.Value. If it contains
+// a required struct, it will check it's content, if it contains a struct
+// it will recursively invoke the function once more, if none of these apply
+// nil will be returned.
+func CheckStructIsRequired(vo reflect.Value) error {
+	if vo.Kind() != reflect.Struct {
+		return nil
+	}
+	for i := 0; i < vo.NumField(); i++ {
+		vtf := vo.Field(i)
+		switch vtf.Type() {
+		case reflect.TypeOf(String{}):
+			return checkRequiredValue(vtf)
+		}
+		if vtf.Kind() == reflect.Struct {
+			if err := CheckStructIsRequired(vtf); err != nil {
+				return err
 			}
 		}
 	}
@@ -40,23 +59,13 @@ func CheckRequired(vo reflect.Value) error {
 }
 
 func checkRequiredValue(vo reflect.Value) error {
-	nf := vo.NumField()
-	for i := 0; i < nf; i++ {
+	for i := 0; i < vo.NumField(); i++ {
 		vtf := vo.Field(i)
 		switch vtf.Kind() {
 		case reflect.String:
 			if vtf.Len() == 0 {
 				return ErrStringEmpty
 			}
-		}
-	}
-	return nil
-}
-
-func ReturnIfError(errs ...error) error {
-	for _, err := range errs {
-		if err != nil {
-			return err
 		}
 	}
 	return nil

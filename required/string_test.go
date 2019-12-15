@@ -2,6 +2,8 @@ package required
 
 import (
 	"testing"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 type Person struct {
@@ -10,6 +12,7 @@ type Person struct {
 }
 
 func skipAssert(p Person) bool {
+	spew.Dump(nil)
 	return true
 }
 
