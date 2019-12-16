@@ -45,9 +45,8 @@ func CheckStructIsRequired(vo reflect.Value) error {
 	}
 	for i := 0; i < vo.NumField(); i++ {
 		vtf := vo.Field(i)
-		// fmt.Println(vtf.Type())
 		switch vtf.Type() {
-		case reflect.TypeOf(String{}), reflect.TypeOf(Int{}), reflect.TypeOf(Bool{}):
+		case reflect.TypeOf(String{}), reflect.TypeOf(Int{}), reflect.TypeOf(Bool{}), reflect.TypeOf(Float32{}):
 			return checkRequiredValue(vtf)
 		}
 		if vtf.Kind() == reflect.Struct {
