@@ -4,7 +4,7 @@
 So, recently at work, one our junior engineers asked me a question: "How do I create required fields for structures in Go, when parsing from JavaScript?". Now, I haven't done much work with API's in Go, so I'm actually not sure what the idiomatic solution for this is, however, delving into the topic turned out interesting. It's a perfect example of Go as an expressive language and how it allows you to approach problems from many different angles, despite it's sometimes restrictive nature. This article will describe some of these approached, by describing a few different techniques and methods for overcoming this issue without generics.
 
 ## Where to find the code
-You are probably already on github, but in case you are not, you can find all the final code of each section here: https://github.com/Pungyeon/required
+You are probably already on github, but in case you are not, you can find all the final code of each section here: https://github.com/Pungyeon/required/
 
 ## The Simple Approach
 So to begin with, let's discuss the most important part of solving this issues. We should never overcomplicate a solution. Always choose the solution, which is the most straight forward. In other words "Keep It Simple Stupid". So let's assume that our issue is that we have the following JSON object, we wish to parse:
@@ -267,9 +267,9 @@ Next, we will need to define how to parse this from `json`, which will be a norm
 ```go
 var (
 	// ErrStringEmpty represents an empty required string error
-	ErrStringEmpty = errors.New("type of must.String not allowed to be empty")
+	ErrStringEmpty = errors.New("type of required.String not allowed to be empty")
 	// ErrCannotUnmarshal represents an unmarshaling error
-	ErrCannotUnmarshal = fmt.Errorf("json: cannot unmarshal into Go value of type must.String")
+	ErrCannotUnmarshal = fmt.Errorf("json: cannot unmarshal into Go value of type required.String")
 )
 
 

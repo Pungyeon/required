@@ -8,9 +8,9 @@ import (
 
 var (
 	// ErrStringEmpty represents an empty required string error
-	ErrStringEmpty = errors.New("type of must.String not allowed to be empty")
+	ErrStringEmpty = errors.New("type of required.String not allowed to be empty")
 	// ErrCannotUnmarshal represents an unmarshaling error
-	ErrCannotUnmarshal = fmt.Errorf("json: cannot unmarshal into Go value of type must.String")
+	ErrCannotUnmarshal = fmt.Errorf("json: cannot unmarshal into Go value of type required.String")
 )
 
 // String is a string type, which is required on JSON (un)marshal
