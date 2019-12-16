@@ -3,7 +3,7 @@ List of Implementation Types
 * [x] ~~int~~
 * [x] ~~string~~
 * [x]  ~~bool~~
-* [ ] float64
+* [x] ~~float64~~
 * [x] ~~float32~~
 
 * [ ] []string
