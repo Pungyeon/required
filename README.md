@@ -1,13 +1,13 @@
 # Golang - Required JSON Fields 
 
 ## Introduction
-So, recently at work, one our junior engineers asked me a question: "How do I create required fields for structures in Go, when parsing from JavaScript?". Now, I haven't done much work with API's in Go, so I'm actually not sure what the idiomatic solution for this is, however, delving into the topic turned out interesting. It's a perfect example of Go as an expressive language and how it allows you to approach problems from many different angles, despite it's sometimes restrictive nature. This article will describe some of these approached, by describing a few different techniques and methods for overcoming this issue without generics.
+So, recently at work, one our junior engineers asked me a question: "How do I create required fields for structures in Go, when parsing from JavaScript?". Now, I haven't done too much work with API's in Go, so I'm actually not sure what the idiomatic solution for this is, however, delving into the topic turned out interesting. It's a perfect example of Go as an expressive language and how it allows you to approach problems from many different angles, despite it's sometimes restrictive nature. This article will describe some of these approached, by describing a few different techniques and methods for overcoming this issue without generics.
 
 ## Where to find the code
-You are probably already on github, but in case you are not, you can find all the final code of each section here: https://github.com/Pungyeon/required/
+You are probably already on github, but in case you are not, you can find all the final code of each section here: https://github.com/Pungyeon/required/article
 
 ## The Simple Approach
-So to begin with, let's discuss the most important part of solving this issues. We should never overcomplicate a solution. Always choose the solution, which is the most straight forward. In other words "Keep It Simple Stupid". So let's assume that our issue is that we have the following JSON object, we wish to parse:
+So to begin with, let's discuss the most important part of solving this issue. We should never overcomplicate a solution. Always choose the solution, which is the most straight forward. In other words "Keep It Simple Stupid". So let's start by solving the simplest issue, in the simplest manner. Consider the following JSON object:
 
 ```json
 {
@@ -18,7 +18,7 @@ So to begin with, let's discuss the most important part of solving this issues. 
 }
 ```
 
-In our first scenario, we wish to make sure that we have a value for the `twitter` property (for whatever reason). To ensure this, we will simply parse the given JSON and return either our parsed `User` object, or an error, if either the json couldn't be parsed, or if our required `twitter` value was not present.
+In our first scenario, we wish to make sure that we have a value for the `twitter` property (for whatever reason). To ensure this, we will simply parse the given JSON and return either our parsed `User` object, or an error if either the json couldn't be parsed, or if our required `twitter` value was not present.
 
 ```go
 package simple
@@ -51,7 +51,9 @@ func UserFromJSON(jsonUser []byte) (User, error) {
 
 ```
 
- If this is all that we need, this is the best solution. It's extremely simple and very straight forward. The code is particularly easy to understand and as we aren't overcomplicating the task. However, it's quite obvious how this is not quite as scalable, as none of this code is reusable. Our code may be simple, but as soon as we decide upon other required fields, for this or other structs, we will have to add more lines of code. If we decide that all of our fields are required, our code quickly becomes messy:
+ If this is all that we need, this is the best solution. It's extremely simple and very straight forward. The code is particularly easy to understand and as we aren't overcomplicating the task. 
+ 
+ However, it's quite apparent how this solution is not particularly scalable, as none of this code is reusable. Our code may be simple, but as soon as we decide upon adding other required fields, for this or other structs, we will have to add more lines of code. If we decide that all of our fields are required, our code quickly becomes messy:
 
 ```go
 // UserFromJSON will parse a json user and validate the required properties
@@ -77,7 +79,7 @@ func UserFromJSON(jsonUser []byte) (User, error) {
 ```
 
 ## The Intermediate Approach
-Fortunately for us, this is not too difficult to clean up. Again, sticking with the principle that we want to solve this issue as simply as possible, we can quickly create a new solution for handling our immediate task. If we look at our repeated code, we can quite quickly see the pattern. We check whether a `bool` value is true, and if it is, then we will return an error. Therefore, we can create a `validate` function for this:
+Fortunately for us, this is not too difficult to clean up. Again, sticking with the principle that we wish to solve this issue as simply as possible, we can quickly create a new solution for handling our immediate task. If we look at our repeated code, we can quite quickly see the pattern. We check whether a `bool` value is true, and if it is, then we will return an error. Therefore, we can create a `validate` function for this:
 
 ```go
 func validate(assertion bool, err error) error {
@@ -101,7 +103,7 @@ This enables us to do a very small refactor, where we can substitute our asserti
 	...
 ```
 
-Of course, doing this by itself, doesn't actually get us anywhere closer to cleaner code. We simply just wrapped our logical operation in a function and return an error, rather than the `bool`. In fact most would argue that this is actually worse, than what we had before. However, this is one of those cases where it's necessary to take a step back, before taking two steps forward. After this small refactor, we can see that all of our assertions are returning an `error` value. We can use this, to create another wrapping function, which will accept a _varadiac_ `error` parameter, which we will iterate, returning any eventual values, which aren't `nil`:
+Of course, doing this by itself, doesn't actually get us anywhere closer to cleaner code. We simply just wrapped our logical operation in a function and return an error, rather than the `bool`. In fact most would argue that this is actually worse, than what we had before. However, this is one of those cases where it's necessary to take a step back, before taking two steps forward. After this small refactor, we can see that all of our assertions are returning an `error` value. We can use this, to create another wrapping function, which will accept a _varadiac_ `error` parameter. We will iterate over these errors, returning the first value which doesn't equal `nil`. If all errors are `nil`, we will simply return `nil`:
 
 ```go
 func validateMany(assertions ...error) error {
@@ -194,7 +196,9 @@ func UserFromJSON(jsonUser []byte) (User, error) {
 }
 ```
 
-A nice side effect of the last two refactors, is that we can use _any_ logical operator, with our `validate` function, to validate our required properties. We can now validate any type we wish, using this methodology. Furthermore, we aren't even coupled to our `validate` function, when using our `validateMany` function. Our `validateMany` function simply takes `...error` as input, so we can use any function which returns an error, in our validation. This opens up a lot of different options, as an example, we could extract our validation of the `User` into a method:
+A nice side effect of the last few refactors, is that we can use _any_ logical operator, with our `validate` function, to validate our required properties. We can now validate any type we wish, using this method. Furthermore, we aren't even coupled to our `validate` function, when using our `validateMany` function. Our `validateMany` function simply takes `...error` as input, so we can use any function which returns an error, in our validation. This opens up a lot of different options, as an example, we could extract our validation of the `User` into a method:
+
+> NOTE: It can be argued, that the function name `validateMany` is a little too specific to our usage. We could easily rename this function to something more generic, such as `handleErrors` or `returnErrorIfNotNil`. Howecer, for the purposes of this article, the current name will do just fine.
 
 ```go
 // Validate all required fields of a given user
@@ -245,10 +249,10 @@ type Message struct {
   }
 ```
 
-We now have a pretty solid solution, which is easy to implement for any of our structs with fields we wish to check as a requirement. However, this still isn't ideal. For each `struct` with a required field, we now have to implement a check on these fields. It would be much better if we could set a required tag on our structs. Unfortunately, despite this being proposed a few times, the Go programming language team have rejected this quite a few times now. Their argument has been both times, that they wish to keep the `json` package small and that it would be entirely possible to implement oneself.
+We now have a pretty solid solution, which is easy to implement for any of our structs with fields we wish to check as a requirement. However, this still isn't ideal. For each `struct` with a required field, we now have to implement a check on these fields. It would be much better if we could set a `required` tag on our structs. Unfortunately, despite this being proposed a few times, the Go programming language team have rejected this consequently. Their argument being, that they wish to keep the `json` package small and that it would be entirely possible to implement an equivalent feature oneself.
 
 ## The Advanced Solution
-I'm not going to lie. This won't be pretty, but I will try my best to show an example of how to implement this, in the form of a required struct type. We will start out, by showing an example of implementing a required string type. Let's start out with the easy part and create a wrapper struct for our `string` value:
+So, let's try to implement this ourselves. I'm not going to lie. This won't be pretty, but I will try my best to show an example of how to implement this, in the form of a required struct type. Let's being by showing an example of implementing a required string type. We will start out with the easy part and create a wrapper struct for our `string` value:
 
 ```go
 // String is a string type, which is required on JSON (un)marshal
@@ -292,9 +296,11 @@ func (s *String) UnmarshalJSON(data []byte) error {
 }
 ```
 
-We aren't really doing anything crazy here. Essentially, we just use the standard `json.Unmarshal` into an `interface{}` and then checking the type of the unmarshalled json. If it turns out that it's a `string`, then we check if the value is equivalent of empty. If it is, then we return an error and if it's not, then we will assign the value to our `String.value` and return no error. Of course, if we find out it's not a `string` (which hopefully should never happen), we will return an error displaying our disgust.
+We aren't really doing anything crazy here. Essentially, we just use the standard `json.Unmarshal` into an `interface{}` and then checking the type of the unmarshalled JSON. If it turns out that it's a `string`, then we check if the value is equivalent of empty. If it is, then we return an error and if it's not, then we will assign the value to our `String::value` and return no error. Of course, if we find out it's not a `string` (which hopefully should never happen), we will return an error displaying our disgust.
 
- Of course, we also need to be able to marshal  `String` to JSON (and not only from). For this, we need to implement the `json.Marshaler` interface, by implementing the `MarshalJSON` method on our `String`. 
+> NOTE: We are passing an `interface{}` to the `json.Unmarshal` function, as the second parameter must be a pointer. Go does not allow us to reference a primitive type, however, we can reference a type of `interface{}`. Therefore, if we pass the pointer of the `interface{}` and then do a type conversion to `string`, we are essentially passing a pointer to our primitive `string` type. 
+
+ Of course, we also need to be able to marshal `String` to a JSON string (and not only from). For this, we need to implement the `json.Marshaler` interface, by implementing the `MarshalJSON` method on our `String`. 
 
 ```go
 // MarshalJSON is an implementation of the json.Marshaler interface
@@ -348,7 +354,7 @@ func TestStringValidation(t *testing.T) {
 }
 ```
 
-Running these tests however, gives us the following output:
+Running these tests, gives us the following output:
 ```
 --- FAIL: TestStringValidation (0.00s)
     --- FAIL: TestStringValidation/nil_string (0.00s)
