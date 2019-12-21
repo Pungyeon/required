@@ -17,8 +17,8 @@ func TestBoolValidation(t *testing.T) {
 		assert func(v interface{}) bool
 	}{
 		{"valid bool", `{"active": true}`, nil, func(v interface{}) bool { return v.(RequiredBool).Active.Value() }},
-		{"empty bool", `{"name":"dingeling"}`, ErrEmpty, skipAssert},
-		{"nil bool", `{}`, ErrEmpty, skipAssert},
+		{"empty bool", `{"name":"dingeling"}`, ErrEmptyBool, skipAssert},
+		{"nil bool", `{}`, ErrEmptyBool, skipAssert},
 	}
 
 	for _, tf := range tt {

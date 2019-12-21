@@ -15,7 +15,7 @@ func (s ByteSlice) Value() []byte {
 // IsValueValid returns whether the contained value has been set
 func (s ByteSlice) IsValueValid() error {
 	if s.value == nil {
-		return ErrEmpty
+		return ErrEmptyByteSlice
 	}
 	return nil
 }
@@ -36,7 +36,7 @@ func (s *ByteSlice) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if len(v) == 0 {
-		return ErrEmpty
+		return ErrEmptyByteSlice
 	}
 	s.value = v
 	return nil

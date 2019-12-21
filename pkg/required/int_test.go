@@ -20,8 +20,8 @@ func TestIntValidation(t *testing.T) {
 		assert func(v interface{}) bool
 	}{
 		{"valid int", `{"age": 29}`, nil, func(c interface{}) bool { return c.(Customer).ID.Value() == 29 }},
-		{"empty int", `{"name":""}`, ErrEmpty, skipAssert},
-		{"nil int", `{}`, ErrEmpty, skipAssert},
+		{"empty int", `{"name":""}`, ErrEmptyInt, skipAssert},
+		{"nil int", `{}`, ErrEmptyInt, skipAssert},
 	}
 
 	for _, tf := range tt {

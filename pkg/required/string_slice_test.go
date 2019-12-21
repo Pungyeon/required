@@ -16,8 +16,8 @@ func TestStringSliceValidation(t *testing.T) {
 		assert func(v interface{}) bool
 	}{
 		{"valid strincg", `{"names":["Lasse", "Basse"]}`, nil, func(p interface{}) bool { return p.(StringSliceChecker).Names.Value()[0] == "Lasse" }},
-		{"empty string", `{"names": []}`, ErrEmpty, skipAssert},
-		{"nil string", `{}`, ErrEmpty, skipAssert},
+		{"empty string", `{"names": []}`, ErrEmptyStringSlice, skipAssert},
+		{"nil string", `{}`, ErrEmptyStringSlice, skipAssert},
 	}
 
 	for _, tf := range tt {

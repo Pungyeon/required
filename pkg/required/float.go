@@ -13,7 +13,7 @@ type Float32 struct {
 // IsValueValid returns whether the contained value has been set
 func (s Float32) IsValueValid() error {
 	if !s.Valid {
-		return ErrEmpty
+		return ErrEmptyFloat
 	}
 	return nil
 }
@@ -56,7 +56,7 @@ type Float64 struct {
 // IsValueValid returns whether the contained value has been set
 func (s Float64) IsValueValid() error {
 	if !s.Valid {
-		return ErrEmpty
+		return ErrEmptyFloat
 	}
 	return nil
 }

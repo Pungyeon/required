@@ -16,8 +16,8 @@ func TestIntSliceValidation(t *testing.T) {
 		assert func(v interface{}) bool
 	}{
 		{"valid strincg", `{"data":[233,2,3,125]}`, nil, func(p interface{}) bool { return p.(IntSliceChecker).Ints.Value()[0] == 233 }},
-		{"empty string", `{"data": []}`, ErrEmpty, skipAssert},
-		{"nil string", `{}`, ErrEmpty, skipAssert},
+		{"empty string", `{"data": []}`, ErrEmptyIntSlice, skipAssert},
+		{"nil string", `{}`, ErrEmptyIntSlice, skipAssert},
 	}
 
 	for _, tf := range tt {

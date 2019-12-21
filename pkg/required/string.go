@@ -13,7 +13,7 @@ type String struct {
 // IsValueValid returns whether the contained value has been set
 func (s String) IsValueValid() error {
 	if s.String == "" {
-		return ErrEmpty
+		return ErrEmptyString
 	}
 	return nil
 }

@@ -17,8 +17,8 @@ func TestStringValidation(t *testing.T) {
 		assert func(v interface{}) bool
 	}{
 		{"valid strincg", `{"name":"Lasse"}`, nil, func(p interface{}) bool { return p.(Person).Name.Value() == "Lasse" }},
-		{"empty string", `{"name":""}`, ErrEmpty, skipAssert},
-		{"nil string", `{}`, ErrEmpty, skipAssert},
+		{"empty string", `{"name":""}`, ErrEmptyString, skipAssert},
+		{"nil string", `{}`, ErrEmptyString, skipAssert},
 	}
 
 	for _, tf := range tt {

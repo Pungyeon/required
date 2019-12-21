@@ -32,14 +32,14 @@ func CheckValues(v interface{}) error {
 	for vo.Kind() == reflect.Ptr {
 		vo = vo.Elem()
 	}
-	return CheckStructIsRequired(vo)
+	return CheckRequiredStructs(vo)
 }
 
-// CheckStructIsRequired will inspect the given reflect.Value. If it contains
+// CheckRequiredStructs will inspect the given reflect.Value. If it contains
 // a required struct, it will check it's content, if it contains a struct
 // it will recursively invoke the function once more, if none of these apply
 // nil will be returned.
-func CheckStructIsRequired(vo reflect.Value) error {
+func CheckRequiredStructs(vo reflect.Value) error {
 	if vo.Kind() != reflect.Struct {
 		return nil
 	}
@@ -50,7 +50,7 @@ func CheckStructIsRequired(vo reflect.Value) error {
 			return checkRequiredValue(vtf)
 		}
 		if vtf.Kind() == reflect.Struct {
-			if err := CheckStructIsRequired(vtf); err != nil {
+			if err := CheckRequiredStructs(vtf); err != nil {
 				return err
 			}
 		}

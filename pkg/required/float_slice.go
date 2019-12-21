@@ -10,7 +10,7 @@ type Float32Slice struct {
 // IsValueValid returns whether the contained value has been set
 func (s Float32Slice) IsValueValid() error {
 	if s.value == nil {
-		return ErrEmpty
+		return ErrEmptyFloatSlice
 	}
 	return nil
 }
@@ -36,7 +36,7 @@ func (s *Float32Slice) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if len(v) == 0 {
-		return ErrEmpty
+		return ErrEmptyFloatSlice
 	}
 	s.value = v
 	return nil
@@ -50,7 +50,7 @@ type Float64Slice struct {
 // IsValueValid returns whether the contained value has been set
 func (s Float64Slice) IsValueValid() error {
 	if s.value == nil {
-		return ErrEmpty
+		return ErrEmptyFloatSlice
 	}
 	return nil
 }
@@ -76,7 +76,7 @@ func (s *Float64Slice) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if len(v) == 0 {
-		return ErrEmpty
+		return ErrEmptyFloatSlice
 	}
 	s.value = v
 	return nil

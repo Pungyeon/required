@@ -16,8 +16,8 @@ func TestFloat32SliceValidation(t *testing.T) {
 		assert func(v interface{}) bool
 	}{
 		{"valid strincg", `{"data":[233,2,3,125]}`, nil, func(p interface{}) bool { return p.(Float32SliceChecker).Floats.Value()[0] == 233 }},
-		{"empty string", `{"data": []}`, ErrEmpty, skipAssert},
-		{"nil string", `{}`, ErrEmpty, skipAssert},
+		{"empty string", `{"data": []}`, ErrEmptyFloatSlice, skipAssert},
+		{"nil string", `{}`, ErrEmptyFloatSlice, skipAssert},
 	}
 
 	for _, tf := range tt {
@@ -47,8 +47,8 @@ func TestFloat64SliceValidation(t *testing.T) {
 		assert func(v interface{}) bool
 	}{
 		{"valid strincg", `{"data":[233,2,3,125]}`, nil, func(p interface{}) bool { return p.(Float64SliceChecker).Floats.Value()[0] == 233 }},
-		{"empty string", `{"data": []}`, ErrEmpty, skipAssert},
-		{"nil string", `{}`, ErrEmpty, skipAssert},
+		{"empty string", `{"data": []}`, ErrEmptyFloatSlice, skipAssert},
+		{"nil string", `{}`, ErrEmptyFloatSlice, skipAssert},
 	}
 
 	for _, tf := range tt {

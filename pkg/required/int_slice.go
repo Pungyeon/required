@@ -10,7 +10,7 @@ type IntSlice struct {
 // IsValueValid returns whether the contained value has been set
 func (s IntSlice) IsValueValid() error {
 	if s.value == nil {
-		return ErrEmpty
+		return ErrEmptyIntSlice
 	}
 	return nil
 }
@@ -35,7 +35,7 @@ func (s *IntSlice) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if len(v) == 0 {
-		return ErrEmpty
+		return ErrEmptyIntSlice
 	}
 	s.value = v
 	return nil

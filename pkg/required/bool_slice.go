@@ -1,6 +1,8 @@
 package required
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 // BoolSlice is a required type containing a byte slice value
 type BoolSlice struct {
@@ -10,7 +12,7 @@ type BoolSlice struct {
 // IsValueValid returns whether the contained value has been set
 func (s BoolSlice) IsValueValid() error {
 	if s.value == nil {
-		return ErrEmpty
+		return ErrEmptyBoolSlice
 	}
 	return nil
 }
@@ -36,7 +38,7 @@ func (s *BoolSlice) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if len(v) == 0 {
-		return ErrEmpty
+		return ErrEmptyBoolSlice
 	}
 	s.value = v
 	return nil

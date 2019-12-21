@@ -16,8 +16,8 @@ func TestBoolSliceValidation(t *testing.T) {
 		assert func(v interface{}) bool
 	}{
 		{"valid strincg", `{"data":[true, false, true]}`, nil, func(p interface{}) bool { return p.(BoolSliceChecker).Bools.Value()[0] == true }},
-		{"empty string", `{"data": []}`, ErrEmpty, skipAssert},
-		{"nil string", `{}`, ErrEmpty, skipAssert},
+		{"empty string", `{"data": []}`, ErrEmptyBoolSlice, skipAssert},
+		{"nil string", `{}`, ErrEmptyBoolSlice, skipAssert},
 	}
 
 	for _, tf := range tt {

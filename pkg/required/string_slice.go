@@ -17,7 +17,7 @@ func (s StringSlice) Value() []string {
 // IsValueValid returns whether the contained value has been set
 func (s StringSlice) IsValueValid() error {
 	if s.value == nil {
-		return ErrEmpty
+		return ErrEmptyStringSlice
 	}
 	return nil
 }
@@ -38,7 +38,7 @@ func (s *StringSlice) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if len(v) == 0 {
-		return ErrEmpty
+		return ErrEmptyStringSlice
 	}
 	s.value = v
 	return nil

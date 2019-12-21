@@ -20,7 +20,7 @@ func (s Bool) Value() bool {
 // IsValueValid returns whether the contained value has been set
 func (s Bool) IsValueValid() error {
 	if !s.Valid {
-		return ErrEmpty
+		return ErrEmptyBool
 	}
 	return nil
 }

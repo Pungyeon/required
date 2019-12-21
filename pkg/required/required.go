@@ -8,10 +8,17 @@ import (
 )
 
 var (
-	// ErrCannotUnmarshal represents an unmarshaling error
-	ErrCannotUnmarshal = fmt.Errorf("json: cannot unmarshal given value")
-	// ErrEmpty represents an empty required Int error
-	ErrEmpty = errors.New("type of required.Required not allowed to be empty")
+	ErrCannotUnmarshal  = fmt.Errorf("json: cannot unmarshal given value")
+	ErrEmpty            = errors.New("type of required.Required not allowed to be empty")
+	ErrEmptyBool        = errors.New("type of required.Bool not allowed to be empty")
+	ErrEmptyBoolSlice   = errors.New("type of required.BoolSlice not allowed to be empty")
+	ErrEmptyByteSlice   = errors.New("type of required.ByteSlice not allowed to be empty")
+	ErrEmptyFloatSlice  = errors.New("type of required.FloatSlice not allowed to be empty")
+	ErrEmptyFloat       = errors.New("type of required.Float not allowed to be empty")
+	ErrEmptyIntSlice    = errors.New("type of required.IntSlice not allowed to be empty")
+	ErrEmptyInt         = errors.New("type of required.Int not allowed to be empty")
+	ErrEmptyStringSlice = errors.New("type of required.StringSlice not allowed to be empty")
+	ErrEmptyString      = errors.New("type of required.String not allowed to be empty")
 )
 
 // Required is an interface which will enable the require.Unmarshal parser,

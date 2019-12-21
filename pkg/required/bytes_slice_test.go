@@ -16,8 +16,8 @@ func TestByteSliceValidation(t *testing.T) {
 		assert func(v interface{}) bool
 	}{
 		{"valid strincg", `{"data":[233,2,3,125]}`, nil, func(p interface{}) bool { return p.(ByteSliceChecker).Bytes.Value()[0] == 233 }},
-		{"empty string", `{"data": []}`, ErrEmpty, skipAssert},
-		{"nil string", `{}`, ErrEmpty, skipAssert},
+		{"empty string", `{"data": []}`, ErrEmptyByteSlice, skipAssert},
+		{"nil string", `{}`, ErrEmptyByteSlice, skipAssert},
 	}
 
 	for _, tf := range tt {

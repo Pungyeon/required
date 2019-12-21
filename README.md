@@ -363,11 +363,11 @@ Running these tests, gives us the following output:
 
 Wait, What? So it turns out, that life is just not that simple in the land of Go. The reason for this, is that when we pass the `"{}"` JSON string, the `json.Unmarshal` will ignore the fields which aren't present. This means that because the the `name` property doesn't appear in the JSON, the `UnmarshalJSON` function is never called, as it is completely skipped. Therefore, we never actually get a chance to check whether our required field contains anything, and therefore our tests fail miserably. 
 
-This means, that we need to find a way of checking whether our parsed required struct's values are empty. However, we don't want to go back to the validation strategy, as this would render our progress completely redundant. Therefore, we will need to find a way of doing this somewhat generically, while still using Go. You might have already seen this coming, but I still hate to say this... we are going to have to use the `reflect` package :grimacing:
+This means, that we need to find a way of checking whether our parsed required struct values are empty. However, we don't want to go back to the validation strategy, as this would render our progress completely redundant. Therefore, we will need to find a way of doing this somewhat generically, while still using Go. You might have already seen this coming, but I still hate to say this... we are going to have to use the `reflect` package :grimacing:
 
 > NOTE: The reason that usage of the `reflect` package is generally seen down upon, is that it's very coupled with the use of `interface{}`. The empty `interface{}` rids of all type safety, as well as type checking. Go is by nature a statically typed language, as opposed to a dynamically typed language (such as Python). We like this, because it helps us avoid type mistmatching mistakes, as well as the type conversion guessing game, which more than often ends with a panic of some kind. In other words, the `reflect` package is not bad necessarily, sometimes it's just necessary. However, it must be used with caution and only when there is no other options available.
 
-Our approach will be to use our strategy from earlier in this article. First we will invoke the `json.Unmarshal` function, then our own function:
+Our approach will be to use our strategy from earlier in this article: Creating a wrapper for iterating over a _variadac_ `error` input, and returning any eventual non `nil` values. Using this function, we will invoke the `json.Unmarshal` function, then check the values of our unmarshaled interface, using our own function `CheckValues`:
 
 ```go
 // ReturnIfError will iterate over a variadac error and return
@@ -405,14 +405,14 @@ func CheckValues(v interface{}) error {
 }
 ```
 
-The code above is relatively simple. We are accepting an `interface{}`. We are then checking if this value is a pointer. If it is a pointer, we will call the `Elem()` function, which will return the value of the pointer. We will keep doing this, until we have an actual value. Once we have the value, we will pass it to the next function `CheckStructIsRequired`:
+The code above is relatively simple. We are accepting an `interface{}` and then checking if this value is a pointer. If it is a pointer, we will call the `Elem()` function, which will return the value of the pointer. We will keep doing this, until we have an actual value. Once we have the value, we will pass it to the next function `CheckRequiredStructs`:
 
 ```go
-// CheckStructIsRequired will inspect the given reflect.Value. If it contains
+// CheckRequiredStructs will inspect the given reflect.Value. If it contains
 // a required struct, it will check it's content, if it contains a struct
 // it will recursively invoke the function once more, if none of these apply
 // nil will be returned.
-func CheckStructIsRequired(vo reflect.Value) error {
+func CheckRequiredStructs(vo reflect.Value) error {
 	if vo.Kind() != reflect.Struct {
 		return nil
 	}
@@ -423,7 +423,7 @@ func CheckStructIsRequired(vo reflect.Value) error {
 			return checkRequiredValue(vtf)
 		}
 		if vtf.Kind() == reflect.Struct {
-			if err := CheckStructIsRequired(vtf); err != nil {
+			if err := CheckRequiredStructs(vtf); err != nil {
 				return err
 			}
 		}
@@ -432,7 +432,7 @@ func CheckStructIsRequired(vo reflect.Value) error {
 }
 ```
 
-In this function we will iterate all the fields of our struct contained in the given `reflect.Value`. For each field, we will check if the `Type()` is equal to our required `String` type. If it is, then we will continue to check the values in the `checkRequiredValue`. If the value is not a required type, we will check whether it's a struct. If it is, we will recursively invoke our `CheckStructIsRequired`, but if it isn't we will just continue our for loop. So, the only thing we have left to look at is our `checkRequiredValue` function:
+In this function we will iterate all the fields of our struct contained in the given `reflect.Value`. For each field, we will check if the `Type()` is equal to our required `String` type. If it is, then we will continue to check the values in the `checkRequiredValue` function. If the value is not a required type, we will check whether it's a struct. If it is, we will recursively invoke our `CheckRequiredStructs`, but if it isn't we will just continue our for loop. So, the only thing we have left to look at is our `checkRequiredValue` function:
 
 ```go
 func checkRequiredValue(vo reflect.Value) error {
@@ -448,14 +448,65 @@ func checkRequiredValue(vo reflect.Value) error {
 	return nil
 }
 ```
-Once again, we will iterate over the properties of the given `reflect.Value` and then, using a switch statement, determine the type of our property. In our current case, we are only interested in `string` values. Also, fortunately, all we need to do, to check whether the value has been set, is by checking the length of the given value. If the value is `0`, then we can conclude that the value definitely hasn't been set. 
+Once again, we will iterate over the properties of the given `reflect.Value` and then, using a switch statement, determine the type of our property. In our current case, we are only interested in `string` values. Fortunately, all we need to do, to check whether the `string` value is valid, is checking the length of the given value. If the value is `0`, then we can conclude that the value definitely hasn't been set. If we use our `UnmarshalJSON` function in our tests, instead of the `json.Unmarshal` function, we can now see our tests passing. Which is wonderful. We can also remove the check from our `UnmarshalJSON` implementation on our `String` struct, as this is now superfluous. 
 
-If we use our `UnmarshalJSON` function in our tests, instead of the `json.Unmarshal` function, we can now see our tests passing. Which is wonderful. We can also remove the check from our `UnmarshalJSON` implementation on our `String` struct, as this is now superfluous. 
+## Further Refactoring
+Even though we have come a long way with our implementation, there are still things to improve on. Two things that are rather annoying about our implementation are:
 
-Of course, this solution isn't particularly complete, but it's a good start. All we need to do to support other types, is to implement the `UnmarshalJSON` and `MarshalJSON` interface methods and then include the type in our switch statement, in the `checkRequiredValue` function. I can recommend looking into the package 
-"github.com/davecgh/go-spew/spew", if you want to look at a more full implementation, using a lot of the same techniques as described here. 
+* We have to change the logic in `CheckRequiredStructs` whenever we add a new type
+* There is no way for users of our package to add their own required types / structs
 
-Either way, the end goal of this implementation type, is to allow developers to use our package (let's call it `required`), to 'tag' struct properties as required JSON field. The structs ending up looking something like the following:
+To accomodate this fact, we can add a `Required` interface, which will be implemented by all of our required types. In our `CheckRequiredStructs` function, we can then simply try to type convert our `interface{}` to our new `Required` interface and let this interface determine whether a value is deemed valid or invalid:
+
+```go
+// Required is an interface which will enable the require.Unmarshal parser,
+// to check whether a given object / interface has a valid contained value.
+type Required interface {
+	IsValueValid() error
+}
+```
+
+Implementing this on our `String` type, will look something like this:
+
+```go
+// IsValueValid returns whether the contained value has been set
+func (s String) IsValueValid() error {
+	if s.value == "" {
+		return ErrStringEmpty
+	}
+	return nil
+}
+```
+
+And once this is done, we can refactor our `CheckRequiredStructs` function, to the following:
+
+```go
+func CheckStructIsRequired(vo reflect.Value) error {
+	if vo.Kind() != reflect.Struct {
+		return nil
+	}
+	for i := 0; i < vo.NumField(); i++ {
+		vtf := vo.Field(i)
+		if req, ok := vtf.Interface().(Required); ok {
+			return req.IsValueValid()
+		}
+		if vtf.Kind() == reflect.Struct {
+			if err := CheckStructIsRequired(vtf); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+```
+
+Essentially, the only different from our previous logic, is that rather than checking for the specific type, we are instead getting the `interface{}` value contained in our `vtf` variable, using `vtf.Interface()`. We then do a type conversion to the `Required` interface, which returns the converted type and a `bool` on whether or not the conversion was possible. If the conversion wasn't possible, we can assume that this wasn't a required type. However, it the conversion was possible, we can use the `IsValueValid` function
+
+This means that we can now delete the `checkRequiredValue` function, as it is now obsolete. This also means, that adding other required types is now even easier. We don't have to touch this code again, as can now be deemed loosely coupled, from the rest of the code. 
+
+> NOTE: Whith this solution, there is still some crunch when using embedded types. In the actual required package, the sql.NullString and equivalent types are used to solve this problem.
+
+The end goal of this implementation type, is to allow developers to use our package (`required`), to 'tag' struct properties as required JSON field. The structs ending up looking something like the following:
 
 ```go
 type User struct {
@@ -471,10 +522,42 @@ type Stats struct {
 }
 ```
 
-This seems a lot tidier, from the perspective of whomever is implementing these fields on the structs. It's a lot of code to get this point, but the ROI does become apparent, the more that you use it. 
+This seems a lot tidier, from the perspective of whomever is implementing these fields on the structs. It's a lot of code to get this point, but the ROI does become apparent, the more that you use it.
+
+With our last refactor, we have also allowed users of our package, to add their own custom required fields. All that needs to be done, is to implement the the `Required` interface, together with using the `required.Unmarshal` function for parsing the incoming JSON. This allows developers to get creative and create more specific required fields, such as Email:
+
+```go
+type User struct {
+	Email RequiredEmail `json:"email"`
+}
+
+type RequiredEmail string
+
+var ErrInvalidEmail = fmt.Errorf("Invalid Email Format")
+
+// IsValueValid returns whether the contained value has been set
+func (email RequiredEmail) IsValueValid() error {
+	matched, err := regexp.MatchString(`.+@.+\.com`, string(email))
+	if err != nil {
+		return err
+	}
+	if !matched {
+		return ErrInvalidEmail
+	}
+	return nil
+}
+```
 
 ## Summary
 The last solution might seem exiting because of the usage of reflect and how it ended up being a rather generic solution. However, keep in mind, that the complexity of the code has hugely increased. The debugging ease and general type safety of the code, has also dimished significantly. This is quite a big trade-off and therefore the last solution is by no means perfect, nor suited for every situation. As said previously, the right solution for a task, depends very much on the task. If we know that we are going to use the `required` package throughout our code base with hundreds of structs. Then it's probably appropriate to development and implement, however, if we are only talking about ensuring requirements for a few fields. Then the more manual method of checking the required fields is much more appropriate. 
 
-I hope that this article gave you some insight into some different techniques of approaching an issue, using Go and all feedback is extremely welcome. Thank you so much for spending your time reading this. If you want to keep up-to-date on my articles, be sure to follow me on Twitter @ifndef_lmj. Thanks again!
+If you are set on using a `required` package, well, then I have good news! Because while writing this article, I did indeed also impelement my own version of a `required` package which can be imported as: `"github.com/Pungyeon/required/pkg/required`. If you would like to contribute to the project, you are more than welcome to. As of writing this article, it's very much a work in progress.
+
+If you would like to see other examples of using the `reflect` pacakge, I would recommend looking into the implementation of the `spew` package: `"github.com/davecgh/go-spew/spew"`. It's a pretty neat package for printing structs prettily, printing values (even private) of interfaces. Looking through the code is a really good way of understanding some of the aspects of the `reflect` package and also gives you a good understanding of how deliberate you must when writing code with it. Another great resource for getting a good introduction to the `reflect` package is this article: https://medium.com/capital-one-tech/learning-to-use-go-reflection-822a0aed74b7 
+
+I hope that this article gave you some insight into some different techniques of approaching a task, as well as insight into general refactoring and code workflow, when writing Go. I also hope it served as an introduction to some of the use cases of the `reflect` package and how to limit oneself, when using it. 
+
+So, thank you so much for reading this article! Feedback is extremely  welcome (both on the article and the package). Package contributions are also very welcomed!
+
+If you would like to reach out to me, find me on Twitter: @ifndef_lmj 
 
