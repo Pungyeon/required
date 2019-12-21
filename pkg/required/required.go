@@ -2,7 +2,22 @@ package required
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
+)
+
+var (
+	StringType       = reflect.TypeOf(String{})
+	IntType          = reflect.TypeOf(Int{})
+	BoolType         = reflect.TypeOf(Bool{})
+	Float32Type      = reflect.TypeOf(Float32{})
+	Float64Type      = reflect.TypeOf(Float64{})
+	StringSliceType  = reflect.TypeOf(StringSlice{})
+	ByteSliceType    = reflect.TypeOf(ByteSlice{})
+	IntSlicetype     = reflect.TypeOf(IntSlice{})
+	Float32SliceType = reflect.TypeOf(Float32Slice{})
+	Float64SliceType = reflect.TypeOf(Float64Slice{})
+	BoolSliceType    = reflect.TypeOf(BoolSlice{})
 )
 
 // ReturnIfError will iterate over a variadac error and return
@@ -34,20 +49,6 @@ func CheckValues(v interface{}) error {
 	}
 	return CheckStructIsRequired(vo)
 }
-
-var (
-	StringType       = reflect.TypeOf(String{})
-	IntType          = reflect.TypeOf(Int{})
-	BoolType         = reflect.TypeOf(Bool{})
-	Float32Type      = reflect.TypeOf(Float32{})
-	Float64Type      = reflect.TypeOf(Float64{})
-	StringSliceType  = reflect.TypeOf(StringSlice{})
-	ByteSliceType    = reflect.TypeOf(ByteSlice{})
-	IntSlicetype     = reflect.TypeOf(IntSlice{})
-	Float32SliceType = reflect.TypeOf(Float32Slice{})
-	Float64SliceType = reflect.TypeOf(Float64Slice{})
-	BoolSliceType    = reflect.TypeOf(BoolSlice{})
-)
 
 // CheckStructIsRequired will inspect the given reflect.Value. If it contains
 // a required struct, it will check it's content, if it contains a struct
@@ -88,6 +89,7 @@ func checkRequiredValue(vo reflect.Value) error {
 	// 	Bool
 	// }
 	// for some reason the vtf.IsNil() no longer evaluates to true :|
+	fmt.Println(vo.Type())
 	for i := 0; i < vo.NumField(); i++ {
 		vtf := vo.Field(i)
 		switch vtf.Kind() {

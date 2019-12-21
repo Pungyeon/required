@@ -5,8 +5,8 @@ import (
 )
 
 type RequiredBool struct {
-	Active Bool `json:"required"`
-	Name   string
+	Bool `json:"required"`
+	Name string
 }
 
 func TestBoolValidation(t *testing.T) {
