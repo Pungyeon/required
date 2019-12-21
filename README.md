@@ -361,9 +361,11 @@ Running these tests, gives us the following output:
         /Users/lassemartinjakobsen/projects/json-validation/required/string_test.go:34: <nil>
 ```
 
-Wait? What the fuck? So it turns out, that life is just not that simple in the land of Go. The reason for this, is that when we pass the `"{}"` JSON string, the `json.Unmarshal` will ignore the fields which aren't present. This means that because the the `name` property doesn't appear in the JSON, the `UnmarshalJSON` function is never called, as it is completely skipped. Therefore, we never actually get a chance to check whether our required field actually contains anything, and therefore our tests fail miserably. 
+Wait, What? So it turns out, that life is just not that simple in the land of Go. The reason for this, is that when we pass the `"{}"` JSON string, the `json.Unmarshal` will ignore the fields which aren't present. This means that because the the `name` property doesn't appear in the JSON, the `UnmarshalJSON` function is never called, as it is completely skipped. Therefore, we never actually get a chance to check whether our required field contains anything, and therefore our tests fail miserably. 
 
 This means, that we need to find a way of checking whether our parsed required struct's values are empty. However, we don't want to go back to the validation strategy, as this would render our progress completely redundant. Therefore, we will need to find a way of doing this somewhat generically, while still using Go. You might have already seen this coming, but I still hate to say this... we are going to have to use the `reflect` package :grimacing:
+
+> NOTE: The reason that usage of the `reflect` package is generally seen down upon, is that it's very coupled with the use of `interface{}`. The empty `interface{}` rids of all type safety, as well as type checking. Go is by nature a statically typed language, as opposed to a dynamically typed language (such as Python). We like this, because it helps us avoid type mistmatching mistakes, as well as the type conversion guessing game, which more than often ends with a panic of some kind. In other words, the `reflect` package is not bad necessarily, sometimes it's just necessary. However, it must be used with caution and only when there is no other options available.
 
 Our approach will be to use our strategy from earlier in this article. First we will invoke the `json.Unmarshal` function, then our own function:
 
