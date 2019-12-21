@@ -6,9 +6,9 @@ List of Implementation Types
 * [x] ~~float64~~
 * [x] ~~float32~~
 
-* [ ] []string
-* [ ] []byte
-* [ ] []int
-* [ ] []float32
-* [ ] []float64
-* [ ] []bool (? Do we actually want this?)
+* [x] []string
+* [x] []byte
+* [x] []int
+* [x] []float32
+* [x] []float64
+* [x] []bool (? Do we actually want this?)
