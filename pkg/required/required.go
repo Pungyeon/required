@@ -2,7 +2,6 @@ package required
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 )
 
@@ -89,7 +88,6 @@ func checkRequiredValue(vo reflect.Value) error {
 	// 	Bool
 	// }
 	// for some reason the vtf.IsNil() no longer evaluates to true :|
-	fmt.Println(vo.Type())
 	for i := 0; i < vo.NumField(); i++ {
 		vtf := vo.Field(i)
 		switch vtf.Kind() {
