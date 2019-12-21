@@ -7,6 +7,14 @@ type BoolSlice struct {
 	value []bool
 }
 
+// IsValueValid returns whether the contained value has been set
+func (s BoolSlice) IsValueValid() error {
+	if s.value == nil {
+		return ErrEmpty
+	}
+	return nil
+}
+
 // Value will return the inner byte type
 func (s BoolSlice) Value() []bool {
 	return s.value

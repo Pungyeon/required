@@ -14,6 +14,14 @@ func (s StringSlice) Value() []string {
 	return s.value
 }
 
+// IsValueValid returns whether the contained value has been set
+func (s StringSlice) IsValueValid() error {
+	if s.value == nil {
+		return ErrEmpty
+	}
+	return nil
+}
+
 // MarshalJSON is an implementation of the json.Marshaler interface
 func (s StringSlice) MarshalJSON() ([]byte, error) {
 	if s.Value() == nil {

@@ -15,9 +15,10 @@ func TestFloat32Validation(t *testing.T) {
 		err    error
 		assert func(v interface{}) bool
 	}{
-		{"valid int", `{"thing": 52.3}`, nil, func(c interface{}) bool { return c.(Float32Checker).Thing.Value() == 52.3 }},
-		{"empty int", `{"name":""}`, ErrEmpty, skipAssert},
-		{"nil int", `{}`, ErrEmpty, skipAssert},
+		{"valid float32", `{"thing": 52.3}`, nil, func(c interface{}) bool { return c.(Float32Checker).Thing.Value() == 52.3 }},
+		{"valid int", `{"thing": 52}`, nil, func(c interface{}) bool { return c.(Float32Checker).Thing.Value() == 52 }},
+		{"empty", `{"name":""}`, ErrEmpty, skipAssert},
+		{"nil", `{}`, ErrEmpty, skipAssert},
 	}
 
 	for _, tf := range tt {
@@ -46,9 +47,10 @@ func TestFloat64Validation(t *testing.T) {
 		err    error
 		assert func(v interface{}) bool
 	}{
-		{"valid int", `{"thing": 52.3}`, nil, func(c interface{}) bool { return c.(Float64Checker).Thing.Value() == 52.3 }},
-		{"empty int", `{"name":""}`, ErrEmpty, skipAssert},
-		{"nil int", `{}`, ErrEmpty, skipAssert},
+		{"valid float", `{"thing": 52.3}`, nil, func(c interface{}) bool { return c.(Float64Checker).Thing.Value() == 52.3 }},
+		{"valid int", `{"thing": 52}`, nil, func(c interface{}) bool { return c.(Float64Checker).Thing.Value() == 52 }},
+		{"empty", `{"name":""}`, ErrEmpty, skipAssert},
+		{"nil", `{}`, ErrEmpty, skipAssert},
 	}
 
 	for _, tf := range tt {

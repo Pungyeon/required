@@ -6,22 +6,27 @@ import (
 
 // Float32 is a Float32 type, which is required on JSON (un)marshal
 type Float32 struct {
-	value *float32value
+	value float32
+	valid bool
 }
 
-type float32value struct {
-	value float32
+// IsValueValid returns whether the contained value has been set
+func (s Float32) IsValueValid() error {
+	if !s.valid {
+		return ErrEmpty
+	}
+	return nil
 }
 
 // Value will return the inner Float32 type
 func (s Float32) Value() float32 {
-	return s.value.value
+	return s.value
 }
 
 // MarshalJSON is an implementation of the json.Marshaler interface
 func (s Float32) MarshalJSON() ([]byte, error) {
-	if s.value == nil {
-		return []byte("null"), nil
+	if !s.valid {
+		return nil, nil
 	}
 	return json.Marshal(s.value)
 
@@ -29,28 +34,14 @@ func (s Float32) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON is an implementation of the json.Unmarhsaler interface
 func (s *Float32) UnmarshalJSON(data []byte) error {
-	if s.value == nil {
-		s.value = &float32value{}
-	}
 	var v interface{}
 	if err := Unmarshal(data, &v); err != nil {
 		return err
 	}
 	switch x := v.(type) {
 	case float64:
-		s.value.value = float32(x)
-		return nil
-	case float32:
-		s.value.value = float32(x)
-		return nil
-	case int32:
-		s.value.value = float32(x)
-		return nil
-	case int64:
-		s.value.value = float32(x)
-		return nil
-	case int:
-		s.value.value = float32(x)
+		s.value = float32(x)
+		s.valid = true
 		return nil
 	default:
 		return ErrCannotUnmarshal
@@ -59,22 +50,27 @@ func (s *Float32) UnmarshalJSON(data []byte) error {
 
 // Float64 is a Float64 type, which is required on JSON (un)marshal
 type Float64 struct {
-	value *float64value
+	value float64
+	valid bool
 }
 
-type float64value struct {
-	value float64
+// IsValueValid returns whether the contained value has been set
+func (s Float64) IsValueValid() error {
+	if !s.valid {
+		return ErrEmpty
+	}
+	return nil
 }
 
 // Value will return the inner Float64 type
 func (s Float64) Value() float64 {
-	return s.value.value
+	return s.value
 }
 
 // MarshalJSON is an implementation of the json.Marshaler interface
 func (s Float64) MarshalJSON() ([]byte, error) {
-	if s.value == nil {
-		return []byte("null"), nil
+	if !s.valid {
+		return nil, nil
 	}
 	return json.Marshal(s.value)
 
@@ -82,28 +78,14 @@ func (s Float64) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON is an implementation of the json.Unmarhsaler interface
 func (s *Float64) UnmarshalJSON(data []byte) error {
-	if s.value == nil {
-		s.value = &float64value{}
-	}
 	var v interface{}
 	if err := Unmarshal(data, &v); err != nil {
 		return err
 	}
 	switch x := v.(type) {
 	case float64:
-		s.value.value = float64(x)
-		return nil
-	case float32:
-		s.value.value = float64(x)
-		return nil
-	case int32:
-		s.value.value = float64(x)
-		return nil
-	case int64:
-		s.value.value = float64(x)
-		return nil
-	case int:
-		s.value.value = float64(x)
+		s.value = float64(x)
+		s.valid = true
 		return nil
 	default:
 		return ErrCannotUnmarshal

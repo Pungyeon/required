@@ -2,20 +2,19 @@ package required
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
-)
-
-var (
-	// ErrStringEmpty represents an empty required string error
-	ErrStringEmpty = errors.New("type of required.StringSlice not allowed to be empty")
-	// ErrCannotUnmarshal represents an unmarshaling error
-	ErrCannotUnmarshal = fmt.Errorf("json: cannot unmarshal given value")
 )
 
 // String is a string type, which is required on JSON (un)marshal
 type String struct {
 	value string
+}
+
+// IsValueValid returns whether the contained value has been set
+func (s String) IsValueValid() error {
+	if s.value == "" {
+		return ErrEmpty
+	}
+	return nil
 }
 
 // Value will return the inner string type
@@ -41,7 +40,7 @@ func (s *String) UnmarshalJSON(data []byte) error {
 	switch x := v.(type) {
 	case string:
 		if x == "" {
-			return ErrStringEmpty
+			return ErrEmpty
 		}
 		s.value = x
 		return nil

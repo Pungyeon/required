@@ -5,8 +5,8 @@ import (
 )
 
 type RequiredBool struct {
-	Bool `json:"required"`
-	Name string
+	Active Bool `json:"active"`
+	Name   string
 }
 
 func TestBoolValidation(t *testing.T) {
@@ -16,8 +16,9 @@ func TestBoolValidation(t *testing.T) {
 		err    error
 		assert func(v interface{}) bool
 	}{
-		{"empty int", `{"name":"dingeling"}`, ErrEmpty, skipAssert},
-		{"nil int", `{}`, ErrEmpty, skipAssert},
+		{"valid bool", `{"active": true}`, nil, func(v interface{}) bool { return v.(RequiredBool).Active.Value() }},
+		{"empty bool", `{"name":"dingeling"}`, ErrEmpty, skipAssert},
+		{"nil bool", `{}`, ErrEmpty, skipAssert},
 	}
 
 	for _, tf := range tt {

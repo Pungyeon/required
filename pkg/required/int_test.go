@@ -5,7 +5,8 @@ import (
 )
 
 type Customer struct {
-	ID Int `json:"age"`
+	ID   Int `json:"age"`
+	Bool `json:"name"`
 }
 
 func skipAssert(v interface{}) bool {

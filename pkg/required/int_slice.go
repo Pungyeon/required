@@ -7,6 +7,14 @@ type IntSlice struct {
 	value []int
 }
 
+// IsValueValid returns whether the contained value has been set
+func (s IntSlice) IsValueValid() error {
+	if s.value == nil {
+		return ErrEmpty
+	}
+	return nil
+}
+
 // Value will return the inner int type
 func (s IntSlice) Value() []int {
 	return s.value

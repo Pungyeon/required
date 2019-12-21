@@ -2,22 +2,23 @@ package required
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"reflect"
 )
 
 var (
-	StringType       = reflect.TypeOf(String{})
-	IntType          = reflect.TypeOf(Int{})
-	BoolType         = reflect.TypeOf(Bool{})
-	Float32Type      = reflect.TypeOf(Float32{})
-	Float64Type      = reflect.TypeOf(Float64{})
-	StringSliceType  = reflect.TypeOf(StringSlice{})
-	ByteSliceType    = reflect.TypeOf(ByteSlice{})
-	IntSlicetype     = reflect.TypeOf(IntSlice{})
-	Float32SliceType = reflect.TypeOf(Float32Slice{})
-	Float64SliceType = reflect.TypeOf(Float64Slice{})
-	BoolSliceType    = reflect.TypeOf(BoolSlice{})
+	// ErrCannotUnmarshal represents an unmarshaling error
+	ErrCannotUnmarshal = fmt.Errorf("json: cannot unmarshal given value")
+	// ErrEmpty represents an empty required Int error
+	ErrEmpty = errors.New("type of required.Required not allowed to be empty")
 )
+
+// Required is an interface which will enable the require.Unmarshal parser,
+// to check whether a given object / interface has a valid contained value.
+type Required interface {
+	IsValueValid() error
+}
 
 // ReturnIfError will iterate over a variadac error and return
 // an error if the given value is not nil
@@ -59,45 +60,12 @@ func CheckStructIsRequired(vo reflect.Value) error {
 	}
 	for i := 0; i < vo.NumField(); i++ {
 		vtf := vo.Field(i)
-		switch vtf.Type() {
-		case StringType, IntType, BoolType,
-			Float32Type, Float64Type,
-			StringSliceType, ByteSliceType,
-			Float32SliceType, Float64SliceType,
-			IntSlicetype, BoolSliceType:
-			return checkRequiredValue(vtf)
+		if req, ok := vtf.Interface().(Required); ok {
+			return req.IsValueValid()
 		}
 		if vtf.Kind() == reflect.Struct {
 			if err := CheckStructIsRequired(vtf); err != nil {
 				return err
-			}
-		}
-	}
-	return nil
-}
-
-func checkRequiredValue(vo reflect.Value) error {
-	// TODO : Something is really wrong here, and this implementation,
-	// doens't work on embedded types for some reason ?
-	// In other words, this works
-	// struct {
-	// 	active Bool
-	// }
-	// but this doesn't
-	// struct {
-	// 	Bool
-	// }
-	// for some reason the vtf.IsNil() no longer evaluates to true :|
-	for i := 0; i < vo.NumField(); i++ {
-		vtf := vo.Field(i)
-		switch vtf.Kind() {
-		case reflect.Ptr, reflect.Slice:
-			if vtf.IsNil() {
-				return ErrEmpty
-			}
-		case reflect.String:
-			if vtf.Len() == 0 {
-				return ErrStringEmpty
 			}
 		}
 	}
