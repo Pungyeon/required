@@ -1,7 +1,7 @@
 # Golang - Required JSON Fields 
 
 ## Introduction
-So, recently at work, one our junior engineers asked me a question: "How do I create required fields for structures in Go, when parsing JSON?". Now, I'm no expert at working with API's in Go, so I'm actually not sure what the idiomatic solution for this is. However, delving into the topic turned out interesting. It's a perfect example of Go as an expressive language and how it allows you to approach problems from many different angles, despite it's sometimes restrictive nature. This article will describe some of these approaches, by describing a few different techniques and methods for solving this task.
+So, recently at work, one our junior engineers asked me a question: "How do I create required fields for structures in Go, when parsing JSON?". Now, I'm no expert at working with APIs in Go, so I'm actually not sure what the idiomatic solution for this is. However, delving into the topic turned out interesting. It's a perfect example of Go as an expressive language and how it allows you to approach problems from many different angles, despite it's sometimes restrictive nature. This article will describe some of these approaches, by describing a few different techniques and methods for solving this task.
 
 ## Where to find the code
 You are probably already on github, but in case you are not, you can find all the final code of each section here: https://github.com/Pungyeon/required/article
@@ -200,7 +200,7 @@ func UserFromJSON(jsonUser []byte) (User, error) {
 
 A nice side effect of the last few refactors, is that we can use _any_ logical operator, with our `validate` function, to validate our required properties. We can now validate any type we wish, using this method. Furthermore, we aren't restricted to using our `validate` function, when using our `validateMany` function. Our `validateMany` function simply takes `...error` as input, so we can use any function which returns an error, in our validation. This opens up a lot of different options, as an example, we could extract our validation of the `User` into a method:
 
-> NOTE: It can be argued, that the function name `validateMany` is a little too specific to our usage. We could easily rename this function to something more generic, such as `handleErrors` or `returnErrorIfNotNil`. Howecer, for the purposes of this article, the current name will do just fine.
+> NOTE: It can be argued, that the function name `validateMany` is a little too specific to our usage. We could easily rename this function to something more generic, such as `handleErrors` or `returnErrorIfNotNil`. However, for the purposes of this article, the current name will do just fine.
 
 ```go
 // Validate all required fields of a given user
@@ -335,7 +335,7 @@ func TestStringValidation(t *testing.T) {
 		err    error
 		assert func(Person) bool
 	}{
-		{"valid strincg", `{"name":"Lasse"}`, nil, func(p Person) bool { return p.Name.Value() == "Lasse" }},
+		{"valid string", `{"name":"Lasse"}`, nil, func(p Person) bool { return p.Name.Value() == "Lasse" }},
 		{"empty string", `{"name":""}`, ErrStringEmpty, skipAssert},
 		{"nil string", `{}`, ErrStringEmpty, skipAssert},
 	}
@@ -367,9 +367,9 @@ Wait, What? So it turns out, that life is just not that simple in the land of Go
 
 This means, that we need to find a way of checking whether our parsed required struct values are empty. However, we don't want to go back to the validation strategy, as this would render our progress completely redundant. Therefore, we will need to find a way of doing this somewhat generically, while still using the tools provided in Go. You might have already seen this coming, but I still hate to say this... we are going to have to use the `reflect` package :grimacing:
 
-> NOTE: The reason that usage of the `reflect` package is generally seen down upon, is that it's very coupled with the use of `interface{}`. The empty `interface{}` rids of all type safety, as well as type checking. Go is by nature a statically typed language, as opposed to a dynamically typed language (such as Python). We like this, because it helps us avoid type mistmatching mistakes, as well as the type conversion guessing game, which more than often ends with a panic of some kind. In other words, the `reflect` package is not bad necessarily, sometimes it's just necessary. However, it must be used with caution and only when there is no other options available.
+> NOTE: The reason that usage of the `reflect` package is generally seen down upon, is that it's very coupled with the use of `interface{}`. The empty `interface{}` rids of all type safety, as well as type checking. Go is by nature a statically typed language, as opposed to a dynamically typed language (such as Python). We like this, because it helps us avoid type mismatching mistakes, as well as the type conversion guessing game, which more than often ends with a panic of some kind. In other words, the `reflect` package is not bad necessarily, sometimes it's just necessary. However, it must be used with caution and only when there is no other options available.
 
-Our approach will be to use our strategy from earlier in this article: Creating a wrapper for iterating over a _variadac_ `error` input, and returning any eventual non `nil` values. We will create our own implementation of the `Unmarshal` function. This function will invoke the `json.Unmarshal` function, then check the values of our unmarshaled interface, using our function `CheckValues`:
+Our approach will be to use our strategy from earlier in this article: Creating a wrapper for iterating over a _variadac_ `error` input, and returning any eventual non `nil` values. We will create our own implementation of the `Unmarshal` function. This function will invoke the `json.Unmarshal` function, then check the values of our unmarshalled interface, using our function `CheckValues`:
 
 ```go
 // ReturnIfError will iterate over a variadac error and return
@@ -458,7 +458,7 @@ Even though we have come a long way with our implementation, there are still thi
 * We have to change the logic in `CheckRequiredStructs` whenever we add a new type
 * There is no way for users of our package to add their own required types / structs
 
-To accomodate this fact, we can add a `Required` interface, which will be implemented by all of our required types. In our `CheckRequiredStructs` function, we can then simply try to type convert our `interface{}` to our new `Required` interface and let this interface determine whether a value is deemed valid or invalid:
+To accommodate this fact, we can add a `Required` interface, which will be implemented by all of our required types. In our `CheckRequiredStructs` function, we can then simply try to type convert our `interface{}` to our new `Required` interface and let this interface determine whether a value is deemed valid or invalid:
 
 ```go
 // Required is an interface which will enable the require.Unmarshal parser,
@@ -506,7 +506,7 @@ Essentially, the only different from our previous logic, is that rather than che
 
 This means that we can now delete the `checkRequiredValue` function, as it is now obsolete. This also means, that adding other required types is now even easier. We don't have to touch this code again, for future implementations.
 
-> NOTE: Whith this solution, there is still some crunch when using embedded types. In the actual required package, the sql.NullString and equivalent types are used to solve this problem.
+> NOTE: With this solution, there is still some crunch when using embedded types. In the actual required package, the sql.NullString and equivalent types are used to solve this problem.
 
 The end goal of this implementation type, is to allow developers to use our package (`required`), to 'tag' struct properties as a required JSON field. The structs ending up looking something like the following:
 
@@ -556,9 +556,9 @@ func (email RequiredEmail) IsValueValid() error {
 
 The last solution might seem exciting because of the usage of reflect and how it ended up being a rather generic solution. However, keep in mind, that the complexity of the code has hugely increased. The debugging ease and general type safety of the code, has also diminished significantly. This is quite a big trade-off and therefore the last solution is by no means perfect, nor suited for every situation. As said previously, the right solution for a task, depends very much on the task. If we know that we are going to use the `required` package throughout our code base with hundreds of structs. Then it's probably appropriate to development and implement, however, if we are only talking about ensuring requirements for a few fields. Then the more manual method of checking the required fields is much more appropriate. 
 
-If you are set on using a `required` package, well, then I have good news! Because while writing this article, I also impelement my own version of a `required` package which can be imported as: `"github.com/Pungyeon/required/pkg/required`. If you would like to contribute to the project, you are more than welcome to. As of writing this article, it's very much a work in progress.
+If you are set on using a `required` package, well, then I have good news! Because while writing this article, I also implement my own version of a `required` package which can be imported as: `"github.com/Pungyeon/required/pkg/required`. If you would like to contribute to the project, you are more than welcome to. As of writing this article, it's very much a work in progress.
 
-If you would like to see other examples of using the `reflect` pacakge, I would recommend looking into the implementation of the `spew` package: `"github.com/davecgh/go-spew/spew"`. It's a pretty neat package for printing structs prettily, printing values (even private) of interfaces. Looking through the code is a really good way of understanding some of the aspects of the `reflect` package and also gives you a good understanding of how deliberate you must be, when writing code with it. Another great introduction to the `reflect` package is this article: https://medium.com/capital-one-tech/learning-to-use-go-reflection-822a0aed74b7 
+If you would like to see other examples of using the `reflect` package, I would recommend looking into the implementation of the `spew` package: `"github.com/davecgh/go-spew/spew"`. It's a pretty neat package for printing structs prettily, printing values (even private) of interfaces. Looking through the code is a really good way of understanding some of the aspects of the `reflect` package and also gives you a good understanding of how deliberate you must be, when writing code with it. Another great introduction to the `reflect` package is this article: https://medium.com/capital-one-tech/learning-to-use-go-reflection-822a0aed74b7 
 
 I hope that this article gave you some insight into some different techniques of approaching a task, as well as insight into general refactoring and code workflow, when writing Go. I also hope it served as an introduction to some of the use cases of the `reflect` package and how to limit oneself, when using it. 
 
