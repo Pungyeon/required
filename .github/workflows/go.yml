@@ -31,7 +31,7 @@ jobs:
         fi
 
     - name: Build
-      run: go build -v samples/main.go -o sample
+      run: go build -v -o sample_app samples/main.go
 
     - name: Test
       run: go test -v .
