@@ -564,5 +564,5 @@ I hope that this article gave you some insight into some different techniques of
 
 So, thank you so much for reading this article! Feedback is extremely  welcome (both on the article and the package). Package contributions are also very welcomed!
 
-If you would like to reach out to me, find me on Twitter: @ifndef_lmj 
+If you would like to reach out to me, find me on Twitter: @ifndef_lmj, or contact me via. e-mail on lasse@jakobsen.dev
 
