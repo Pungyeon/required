@@ -1,6 +1,30 @@
 # Golang - Required JSON Fields 
 
 ## Introduction
+This package provides the capability of ensuring the presence of fields of a structure, when parsed from JSON. This project comes from many lines of code reading (more or less) `x != ""`. I had enough of this and therefore wrote this package. It's by no means perfect, but it's certainly better than nothing at all :sweat_smile:. I also wrote an article along with how I came up with this package, which you are more than welcome to give a read, to understand the inner workings of the package, as well as alternative approaches to solving this issue. 
+
+## Support
+| type | primitive | support |
+| ---- | :-------- | ------- |
+| Bool | `bool` | :white_check_mark: |
+| BoolSlice | `[]bool` | :white_check_mark: |
+| ByteSlice | `[]byte` | :white_check_mark: |
+| Float | `float32`, `float64` | :white_check_mark: |
+| FloatSlice | `[]float32`, `[]float64` | :white_check_mark: |
+| Int | `int` | :white_check_mark: |
+| IntSlice | `[]int` | :white_check_mark: |
+| String | `string` | :white_check_mark: |
+| StringSlice | `[]string` | :white_check_mark: |
+|Custom|`struct{}`|:white_check_mark: <sup>1</sup>|
+|Interface|`interface{}`|:no_entry_sign:|
+|Complex|`complex64`, `complex128`|:no_entry_sign:|
+|Function|`func`|:no_entry_sign:|
+|Map|`map`|:no_entry_sign:|
+
+> <sup>1</sup> The `Custom` type is implemented via the `Required` interface, and implementing the method `IsValueValid()`. Once the struct is passed through the `Unmarshal` function, the value will automatically be checked as valid.
+
+# Article 
+## Introduction
 So, recently at work, one our junior engineers asked me a question: "How do I create required fields for structures in Go, when parsing JSON?". Now, I'm no expert at working with APIs in Go, so I'm actually not sure what the idiomatic solution for this is. However, delving into the topic turned out interesting. It's a perfect example of Go as an expressive language and how it allows you to approach problems from many different angles, despite it's sometimes restrictive nature. This article will describe some of these approaches, by describing a few different techniques and methods for solving this task.
 
 ## Where to find the code
@@ -490,7 +514,10 @@ func CheckStructIsRequired(vo reflect.Value) error {
 	for i := 0; i < vo.NumField(); i++ {
 		vtf := vo.Field(i)
 		if req, ok := vtf.Interface().(Required); ok {
-			return req.IsValueValid()
+			if err := req.IsValueValid(); err != nil {
+		        return err	
+            }
+            continue
 		}
 		if vtf.Kind() == reflect.Struct {
 			if err := CheckStructIsRequired(vtf); err != nil {
