@@ -12,6 +12,15 @@ type Bool struct {
 
 var _ Required = Bool{}
 
+func NewBool(value bool) Bool {
+	return Bool{
+		NullBool: sql.NullBool{
+			Bool: value,
+			Valid: true,
+		},
+	}
+}
+
 // Value will return the inner Bool type
 func (s Bool) Value() bool {
 	return s.Bool

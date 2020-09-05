@@ -1,12 +1,28 @@
 package required
 
 import (
+	"encoding/json"
 	"testing"
 )
 
 type RequiredBool struct {
 	Active Bool `json:"active"`
 	Name   string
+}
+
+func TestNewBool(t *testing.T) {
+	v := NewBool(true)
+	data, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b Bool
+	if err := Unmarshal(data, &b); err != nil {
+		t.Fatal(err)
+	}
+	if b.Bool != true {
+		t.Fatalf("%v != %v", b, true)
+	}
 }
 
 func TestBoolValidation(t *testing.T) {

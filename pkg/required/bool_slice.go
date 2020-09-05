@@ -9,6 +9,14 @@ type BoolSlice struct {
 	value []bool
 }
 
+var _ Required = &BoolSlice{}
+
+func NewBoolSlice(booleans []bool) BoolSlice {
+	return BoolSlice{
+		value: booleans,
+	}
+}
+
 // IsValueValid returns whether the contained value has been set
 func (s BoolSlice) IsValueValid() error {
 	if s.value == nil {

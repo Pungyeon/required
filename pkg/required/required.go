@@ -39,32 +39,38 @@ func CheckValues(v interface{}) error {
 	for vo.Kind() == reflect.Ptr {
 		vo = vo.Elem()
 	}
-	return CheckStructIsRequired(vo, vo.Type().Name())
+	return CheckIfRequired(vo, vo.Type().Name())
 }
 
-// CheckStructIsRequired will inspect the given reflect.Value. If it contains
-// a required struct, it will check it's content, if it contains a struct
-// it will recursively invoke the function once more, if none of these apply
-// nil will be returned.
-func CheckStructIsRequired(vo reflect.Value, parent string) error {
+func CheckIfRequired(vo reflect.Value, field string) error {
 	if vo.Kind() != reflect.Struct {
 		return nil
 	}
-	for i := 0; i < vo.NumField(); i++ {
-		vtf := vo.Field(i)
-		if req, ok := vtf.Interface().(Required); ok {
-			if err := req.IsValueValid(); err != nil {
-				return requiredErr{
-					err: err,
-					msg: childString(parent, vo.Type().Field(i).Name),
-				}
-			}
-			continue
+	if req, ok := vo.Interface().(Required); ok {
+		return validateRequired(req, field)
+	}
+
+	return CheckStructFieldsRequired(vo, field)
+}
+
+func validateRequired(req Required, field string) error {
+	if err := req.IsValueValid(); err != nil {
+		return requiredErr{
+			err: err,
+			msg: field,
 		}
-		if vtf.Kind() == reflect.Struct {
-			if err := CheckStructIsRequired(vtf, childString(parent, vo.Type().Field(i).Name)); err != nil {
-				return err
-			}
+	}
+	return nil
+}
+
+// CheckStructFieldsRequired will inspect the given reflect.Value. If it contains
+// a required struct, it will check it's content, if it contains a struct
+// it will recursively invoke the function once more, if none of these apply
+// nil will be returned.
+func CheckStructFieldsRequired(vo reflect.Value, parent string) error {
+	for i := 0; i < vo.NumField(); i++ {
+		if err := CheckIfRequired(vo.Field(i), childString(parent, vo.Type().Field(i).Name)); err != nil {
+			return err
 		}
 	}
 	return nil
