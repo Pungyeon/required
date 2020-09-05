@@ -25,9 +25,8 @@ func TestBoolValidation(t *testing.T) {
 		t.Run(tf.name, func(t *testing.T) {
 			jsonb := []byte(tf.json)
 			var reqBool RequiredBool
-			if err := Unmarshal(jsonb, &reqBool); err != tf.err {
-				t.Fatal(err)
-			}
+			err := Unmarshal(jsonb, &reqBool)
+			assertError(t, err, tf.err)
 
 			if !tf.assert(reqBool) {
 				t.Fatalf("Assertion Failed: %+v", reqBool)

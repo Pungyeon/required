@@ -24,9 +24,9 @@ func TestFloat32SliceValidation(t *testing.T) {
 		t.Run(tf.name, func(t *testing.T) {
 			jsonb := []byte(tf.json)
 			var checker Float32SliceChecker
-			if err := Unmarshal(jsonb, &checker); err != tf.err {
-				t.Fatal(err)
-			}
+			err := Unmarshal(jsonb, &checker)
+			assertError(t, err, tf.err)
+
 
 			if !tf.assert(checker) {
 				t.Fatalf("Assertion Failed: %+v", checker)
@@ -55,9 +55,9 @@ func TestFloat64SliceValidation(t *testing.T) {
 		t.Run(tf.name, func(t *testing.T) {
 			jsonb := []byte(tf.json)
 			var checker Float64SliceChecker
-			if err := Unmarshal(jsonb, &checker); err != tf.err {
-				t.Fatal(err)
-			}
+			err := Unmarshal(jsonb, &checker)
+			assertError(t, err, tf.err)
+
 
 			if !tf.assert(checker) {
 				t.Fatalf("Assertion Failed: %+v", checker)

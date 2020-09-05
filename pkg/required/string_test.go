@@ -16,7 +16,7 @@ func TestStringValidation(t *testing.T) {
 		err    error
 		assert func(v interface{}) bool
 	}{
-		{"valid strincg", `{"name":"Lasse"}`, nil, func(p interface{}) bool { return p.(Person).Name.Value() == "Lasse" }},
+		{"valid string", `{"name":"Lasse"}`, nil, func(p interface{}) bool { return p.(Person).Name.Value() == "Lasse" }},
 		{"empty string", `{"name":""}`, ErrEmptyString, skipAssert},
 		{"nil string", `{}`, ErrEmptyString, skipAssert},
 	}
@@ -25,9 +25,9 @@ func TestStringValidation(t *testing.T) {
 		t.Run(tf.name, func(t *testing.T) {
 			jsonb := []byte(tf.json)
 			var person Person
-			if err := Unmarshal(jsonb, &person); err != tf.err {
-				t.Fatal(err)
-			}
+			err := Unmarshal(jsonb, &person)
+			assertError(t, err, tf.err)
+
 
 			if !tf.assert(person) {
 				t.Fatalf("Assertion Failed: %+v", person)

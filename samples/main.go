@@ -21,6 +21,8 @@ type Address struct {
 }
 
 func main() {
+	// Try deleting required fields from the JSON below,
+	// and you should expect an error on line 39!
 	jsonBytes := []byte(`{
 		"name": "BigCustomer",
 		"address": {
