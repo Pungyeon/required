@@ -7,6 +7,14 @@ type ByteSlice struct {
 	value []byte
 }
 
+var _ Required = &ByteSlice{}
+
+func NewByteSlice(bytes []byte) ByteSlice {
+	return ByteSlice{
+		value: bytes,
+	}
+}
+
 // Value will return the inner byte type
 func (s ByteSlice) Value() []byte {
 	return s.value

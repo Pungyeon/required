@@ -39,7 +39,7 @@ func (s BoolSlice) MarshalJSON() ([]byte, error) {
 
 }
 
-// UnmarshalJSON is an implementation of the json.Unmarhsaler interface
+// UnmarshalJSON is an implementation of the json.Unmarshaler interface
 func (s *BoolSlice) UnmarshalJSON(data []byte) error {
 	var v []bool
 	if err := Unmarshal(data, &v); err != nil {

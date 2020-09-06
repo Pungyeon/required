@@ -9,8 +9,7 @@ type Embedded struct {
 	Bool         `json:"bool"`
 	String       `json:"string"`
 	Int          `json:"int"`
-	Float32      `json:"float32"`
-	Float64      `json:"float64"`
+	Float        `json:"float64"`
 	IntSlice     `json:"int_slice"`
 	ByteSlice    `json:"byte_slice"`
 	BoolSlice    `json:"bool_slice"`
@@ -41,8 +40,7 @@ func TestEmbedded(t *testing.T) {
 	assertEmbedded(t, embed.Bool.Value() == true, "Bool")
 	assertEmbedded(t, embed.String.Value() == "hello", "String")
 	assertEmbedded(t, embed.Int.Value() == 64, "Int")
-	assertEmbedded(t, embed.Float32.Value() == 32.2, "Float32")
-	assertEmbedded(t, embed.Float64.Value() == 64.4, "Float64")
+	assertEmbedded(t, embed.Float.Value() == 64.4, "Float")
 	assertEmbedded(t, embed.IntSlice.Value()[0] == 1, "IntSlice")
 	assertEmbedded(t, embed.ByteSlice.Value()[0] == 1, "ByteSlice")
 	assertEmbedded(t, embed.BoolSlice.Value()[0] == true, "BoolSlice")

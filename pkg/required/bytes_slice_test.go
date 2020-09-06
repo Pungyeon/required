@@ -1,11 +1,27 @@
 package required
 
 import (
+	"encoding/json"
 	"testing"
 )
 
 type ByteSliceChecker struct {
 	Bytes ByteSlice `json:"data"`
+}
+
+func TestNewByteSlice(t *testing.T) {
+	v := NewByteSlice([]byte{1, 2, 3})
+	data, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b ByteSlice
+	if err := Unmarshal(data, &b); err != nil {
+		t.Fatal(err)
+	}
+	if len(b.value) != 3 {
+		t.Fatalf("%v != %v", len(b.value), 3)
+	}
 }
 
 func TestByteSliceValidation(t *testing.T) {
