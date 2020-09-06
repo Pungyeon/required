@@ -31,19 +31,21 @@ func ReturnIfError(errs ...error) error {
 func Unmarshal(data []byte, v interface{}) error {
 	return ReturnIfError(
 		json.Unmarshal(data, v),
-		CheckValues(v),
+		checkValues(v),
 	)
 }
 
-// CheckValues will check the values of a given interface and ensure
+// checkValues will check the values of a given interface and ensure
 // that if it contains a required struct, that the required values
 // are not empty
-func CheckValues(v interface{}) error {
+func checkValues(v interface{}) error {
 	vo := reflect.ValueOf(v)
-	return CheckIfRequired(vo, vo.Type().Name())
+	return checkIfRequired(vo, vo.Type().Name())
 }
 
-func CheckIfRequired(vo reflect.Value, field string) error {
+// checkIfRequired will ensure that the given value is valid
+// if it is a structure which fulfils the Required interface
+func checkIfRequired(vo reflect.Value, field string) error {
 	for vo.Kind() == reflect.Ptr {
 		vo = vo.Elem()
 	}
@@ -53,10 +55,12 @@ func CheckIfRequired(vo reflect.Value, field string) error {
 	if req, ok := vo.Interface().(Required); ok {
 		return validateRequired(req, field)
 	}
-
-	return CheckStructFieldsRequired(vo, field)
+	return checkStructFieldsRequired(vo, field)
 }
 
+// validateRequired is a wrapper function for invoking the
+// Required interface and returning a detailed error, if
+// the value is invalid
 func validateRequired(req Required, field string) error {
 	if err := req.IsValueValid(); err != nil {
 		return requiredErr{
@@ -67,13 +71,16 @@ func validateRequired(req Required, field string) error {
 	return nil
 }
 
-// CheckStructFieldsRequired will inspect the given reflect.Value. If it contains
+// checkStructFieldsRequired will inspect the given reflect.Value. If it contains
 // a required struct, it will check it's content, if it contains a struct
 // it will recursively invoke the function once more, if none of these apply
 // nil will be returned.
-func CheckStructFieldsRequired(vo reflect.Value, parent string) error {
+func checkStructFieldsRequired(vo reflect.Value, parent string) error {
 	for i := 0; i < vo.NumField(); i++ {
-		if err := CheckIfRequired(vo.Field(i), childString(parent, vo.Type().Field(i).Name)); err != nil {
+		if err := checkIfRequired(
+			vo.Field(i),
+			childString(parent, vo.Type().Field(i).Name),
+		); err != nil {
 			return err
 		}
 	}
