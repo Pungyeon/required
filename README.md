@@ -23,9 +23,7 @@ This package provides the capability of ensuring the presence of fields of a str
 
 > <sup>1</sup> The `Custom` type is implemented via the `Required` interface, and implementing the method `IsValueValid()`. Once the struct is passed through the `Unmarshal` function, the value will automatically be checked as valid.
 
-# Article 
-> NOTE: This article is out-of-date, and currently being updated
-
+# Article
 ## Introduction
 So, recently at work, one our junior engineers asked me a question: "How do I create required fields for structures in Go, when parsing JSON?". Now, I'm no expert at working with APIs in Go, so I'm actually not sure what the idiomatic solution for this is. However, delving into the topic turned out interesting. It's a perfect example of Go as an expressive language and how it allows you to approach problems from many different angles, despite it's sometimes restrictive nature. This article will describe some of these approaches, by describing a few different techniques and methods for solving this task.
 
@@ -395,7 +393,7 @@ This means, that we need to find a way of checking whether our parsed required s
 
 > NOTE: The reason that usage of the `reflect` package is generally seen down upon, is that it's very coupled with the use of `interface{}`. The empty `interface{}` rids of all type safety, as well as type checking. Go is by nature a statically typed language, as opposed to a dynamically typed language (such as Python). We like this, because it helps us avoid type mismatching mistakes, as well as the type conversion guessing game, which more than often ends with a panic of some kind. In other words, the `reflect` package is not bad necessarily, sometimes it's just necessary. However, it must be used with caution and only when there is no other options available.
 
-Our approach will be to use our strategy from earlier in this article: Creating a wrapper for iterating over a _variadac_ `error` input, and returning any eventual non `nil` values. We will create our own implementation of the `Unmarshal` function. This function will invoke the `json.Unmarshal` function, then check the values of our unmarshalled interface, using our function `CheckValues`:
+Our approach will be to use our strategy from earlier in this article: Creating a wrapper for iterating over a _variadac_ `error` input, and returning any eventual non `nil` values. We will create our own implementation of the `Unmarshal` function. This function will invoke the `json.Unmarshal` function, then check the values of our unmarshalled interface, using our new function `CheckValues`:
 
 ```go
 // ReturnIfError will iterate over a variadac error and return
@@ -429,18 +427,18 @@ func CheckValues(v interface{}) error {
 	for vo.Kind() == reflect.Ptr {
 		vo = vo.Elem()
 	}
-	return CheckStructIsRequired(vo)
+	return CheckIfRequired(vo)
 }
 ```
 
 The code above is relatively simple. We are accepting an `interface{}` and then checking if this value is a pointer. If it is a pointer, we will call the `Elem()` function, which will return the value of the pointer. We will keep doing this, until we have an actual value. Once we have the value, we will pass it to the next function `CheckRequiredStructs`:
 
 ```go
-// CheckRequiredStructs will inspect the given reflect.Value. If it contains
+// CheckIsRequired will inspect the given reflect.Value. If it contains
 // a required struct, it will check it's content, if it contains a struct
 // it will recursively invoke the function once more, if none of these apply
 // nil will be returned.
-func CheckRequiredStructs(vo reflect.Value) error {
+func CheckIfRequired(vo reflect.Value) error {
 	if vo.Kind() != reflect.Struct {
 		return nil
 	}
@@ -481,10 +479,11 @@ Once again, we will iterate over the properties of the given `reflect.Value` and
 ## Further Refactoring
 Even though we have come a long way with our implementation, there are still things to improve on. Two things that are rather annoying about our implementation are:
 
-* We have to change the logic in `CheckRequiredStructs` whenever we add a new type
+* We have to change the logic in `CheckIfRequired` whenever we add a new type
 * There is no way for users of our package to add their own required types / structs
+* There are problems regarding validating primitive types. If they aren't set, then they will simply contain a default value.
 
-To accommodate this fact, we can add a `Required` interface, which will be implemented by all of our required types. In our `CheckRequiredStructs` function, we can then simply try to type convert our `interface{}` to our new `Required` interface and let this interface determine whether a value is deemed valid or invalid:
+To accommodate this fact, we can add a `Required` interface, which will be implemented by all of our required types. Furthermore, our primitive types will contain a new type instead, which we will call `Nullable`. This type, will make it very easy for us to check whether something is default or never set. Let us start out by implementing our `Required` interface.
 
 ```go
 // Required is an interface which will enable the require.Unmarshal parser,
@@ -494,22 +493,42 @@ type Required interface {
 }
 ```
 
-Implementing this on our `String` type, will look something like this:
+Then, let us create our `Nullable` type:
 
 ```go
-// IsValueValid returns whether the contained value has been set
+type Nullable struct {
+    value interface{}
+}
+```
+
+The value of `interface{}` will be `nil` if it's never set. Therefore, should the original `json.Unmarshal` function do nothing to set our value, it will indeed be `nil` rather than a default value (such as 0 for an `int`). Implementing both of these types on our `String` type, will look something like this:
+
+```go
+type String struct {
+	Nullable
+}
+
+func (s String) Value() string {
+    return s.value.(string)
+}
+
 func (s String) IsValueValid() error {
-	if s.value == "" {
+    if s.value == nil {
+        return ErrStringEmpty
+    }
+    if s.Value() == "" {
 		return ErrStringEmpty
 	}
 	return nil
 }
 ```
 
-And once this is done, we can refactor our `CheckRequiredStructs` function, to the following:
+First of all, we are substituting our `value string` with the new `Nullable` type, as an embedded property (It doesn't have to be embedded, I just preferred it to be). We have since changed our `Value()` function, which is now asserting the `Nullable::value` to a `string` type, before returning this as a string. We know that it will always be a string, so we can do this *relatively* safely.
+
+Last of all, we will fulfil our `Required` interface by implementing the `IsValueValid()` method. This method will check if the `Nullable::value` is `nil`, or if our `Value()` is `""`, which we also consider empty in this case. If either of these are true, we return an error. Once this is done, we can refactor our `CheckIfRequired` function, to the following:
 
 ```go
-func CheckStructIsRequired(vo reflect.Value) error {
+func CheckIfRequired(vo reflect.Value) error {
 	if vo.Kind() != reflect.Struct {
 		return nil
 	}
@@ -517,10 +536,11 @@ func CheckStructIsRequired(vo reflect.Value) error {
 		vtf := vo.Field(i)
 		if req, ok := vtf.Interface().(Required); ok {
 			if err := req.IsValueValid(); err != nil {
-		        return err	
-      }
-      continue
-		}
+		        return err
+            }
+            continue
+      	}
+      
 		if vtf.Kind() == reflect.Struct {
 			if err := CheckStructIsRequired(vtf); err != nil {
 				return err
@@ -534,8 +554,6 @@ func CheckStructIsRequired(vo reflect.Value) error {
 Essentially, the only different from our previous logic, is that rather than checking for the specific type, we are instead getting the `interface{}` value contained in our `vtf` variable, using `vtf.Interface()`. We then do a type conversion to the `Required` interface, which returns the converted type and a `bool` (which represents whether or not the conversion was possible). If the conversion wasn't possible, we can assume that this wasn't a required type. However, it the conversion was possible, we can use the `IsValueValid` function, to determine the validity of the contained value.
 
 This means that we can now delete the `checkRequiredValue` function, as it is now obsolete. This also means, that adding other required types is now even easier. We don't have to touch this code again, for future implementations.
-
-> NOTE: With this solution, there is still some crunch when using embedded types. In the actual required package, the sql.NullString and equivalent types are used to solve this problem.
 
 The end goal of this implementation type, is to allow developers to use our package (`required`), to 'tag' struct properties as a required JSON field. The structs ending up looking something like the following:
 
@@ -593,5 +611,7 @@ I hope that this article gave you some insight into some different techniques of
 
 So, thank you so much for reading this article! Feedback is extremely  welcome (both on the article and the package). Package contributions are also very welcomed!
 
-If you would like to reach out to me, find me on Twitter: @ifndef_lmj, or contact me via. e-mail on lasse@jakobsen.dev
+If you would like to reach out to me, find me on Twitter: @ifndef_lmj, or contact me via. e-mail on: lasse@jakobsen.dev
+
+
 
