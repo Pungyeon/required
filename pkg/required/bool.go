@@ -37,8 +37,8 @@ func (s Bool) IsValueValid() error {
 
 // MarshalJSON is an implementation of the json.Marshaler interface
 func (s Bool) MarshalJSON() ([]byte, error) {
-	if !s.Valid {
-		return nil, nil
+	if err := s.IsValueValid(); err != nil {
+		return nil, err
 	}
 	return json.Marshal(s.Bool)
 

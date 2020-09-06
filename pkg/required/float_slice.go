@@ -31,8 +31,8 @@ func (s FloatSlice) Value() []float64 {
 
 // MarshalJSON is an implementation of the json.Marshaler interface
 func (s FloatSlice) MarshalJSON() ([]byte, error) {
-	if s.Value() == nil {
-		return nil, nil
+	if err := s.IsValueValid(); err != nil {
+		return nil, err
 	}
 	return json.Marshal(s.value)
 

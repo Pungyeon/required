@@ -29,8 +29,8 @@ func (s IntSlice) Value() []int {
 
 // MarshalJSON is an implementation of the json.Marshaler interface
 func (s IntSlice) MarshalJSON() ([]byte, error) {
-	if s.Value() == nil {
-		return nil, nil
+	if err := s.IsValueValid(); err != nil {
+		return nil, err
 	}
 	return json.Marshal(s.value)
 }

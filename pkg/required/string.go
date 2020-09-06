@@ -35,8 +35,8 @@ func (s String) Value() string {
 
 // MarshalJSON is an implementation of the json.Marshaler interface
 func (s String) MarshalJSON() ([]byte, error) {
-	if s.Value() == "" {
-		return []byte("null"), nil
+	if err := s.IsValueValid(); err != nil {
+		return nil, err
 	}
 	return json.Marshal(s.String)
 
