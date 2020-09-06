@@ -40,13 +40,13 @@ func Unmarshal(data []byte, v interface{}) error {
 // are not empty
 func CheckValues(v interface{}) error {
 	vo := reflect.ValueOf(v)
-	for vo.Kind() == reflect.Ptr {
-		vo = vo.Elem()
-	}
 	return CheckIfRequired(vo, vo.Type().Name())
 }
 
 func CheckIfRequired(vo reflect.Value, field string) error {
+	for vo.Kind() == reflect.Ptr {
+		vo = vo.Elem()
+	}
 	if vo.Kind() != reflect.Struct {
 		return nil
 	}
