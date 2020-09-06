@@ -24,6 +24,8 @@ This package provides the capability of ensuring the presence of fields of a str
 > <sup>1</sup> The `Custom` type is implemented via the `Required` interface, and implementing the method `IsValueValid()`. Once the struct is passed through the `Unmarshal` function, the value will automatically be checked as valid.
 
 # Article 
+> NOTE: This article is out-of-date, and currently being updated
+
 ## Introduction
 So, recently at work, one our junior engineers asked me a question: "How do I create required fields for structures in Go, when parsing JSON?". Now, I'm no expert at working with APIs in Go, so I'm actually not sure what the idiomatic solution for this is. However, delving into the topic turned out interesting. It's a perfect example of Go as an expressive language and how it allows you to approach problems from many different angles, despite it's sometimes restrictive nature. This article will describe some of these approaches, by describing a few different techniques and methods for solving this task.
 
@@ -516,8 +518,8 @@ func CheckStructIsRequired(vo reflect.Value) error {
 		if req, ok := vtf.Interface().(Required); ok {
 			if err := req.IsValueValid(); err != nil {
 		        return err	
-            }
-            continue
+      }
+      continue
 		}
 		if vtf.Kind() == reflect.Struct {
 			if err := CheckStructIsRequired(vtf); err != nil {
