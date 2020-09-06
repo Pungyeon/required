@@ -1,11 +1,27 @@
 package required
 
 import (
+	"encoding/json"
 	"testing"
 )
 
 type Customer struct {
 	ID Int `json:"age"`
+}
+
+func TestNewInt(t *testing.T) {
+	v := NewInt(12)
+	data, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b Int
+	if err := Unmarshal(data, &b); err != nil {
+		t.Fatal(err)
+	}
+	if b.Value() != v.Value() {
+		t.Fatalf("%v != %v", b.Value(), v.Value())
+	}
 }
 
 func skipAssert(v interface{}) bool {

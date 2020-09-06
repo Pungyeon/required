@@ -13,8 +13,7 @@ type Embedded struct {
 	IntSlice     `json:"int_slice"`
 	ByteSlice    `json:"byte_slice"`
 	BoolSlice    `json:"bool_slice"`
-	Float32Slice `json:"float32_slice"`
-	Float64Slice `json:"float64_slice"`
+	FloatSlice   `json:"float64_slice"`
 	StringSlice  `json:"string_slice"`
 }
 
@@ -44,8 +43,7 @@ func TestEmbedded(t *testing.T) {
 	assertEmbedded(t, embed.IntSlice.Value()[0] == 1, "IntSlice")
 	assertEmbedded(t, embed.ByteSlice.Value()[0] == 1, "ByteSlice")
 	assertEmbedded(t, embed.BoolSlice.Value()[0] == true, "BoolSlice")
-	assertEmbedded(t, embed.Float32Slice.Value()[0] == 32.2, "Float32Slice")
-	assertEmbedded(t, embed.Float64Slice.Value()[0] == 64.4, "Float64Slice")
+	assertEmbedded(t, embed.FloatSlice.Value()[0] == 64.4, "FloatSlice")
 	assertEmbedded(t, embed.StringSlice.Value()[0] == "hello", "StringSlice")
 }
 

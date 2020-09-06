@@ -7,6 +7,13 @@ type IntSlice struct {
 	value []int
 }
 
+// NewIntSlice returns a valid IntSlice with given value
+func NewIntSlice(ints []int) IntSlice {
+	return IntSlice{
+		value: ints,
+	}
+}
+
 // IsValueValid returns whether the contained value has been set
 func (s IntSlice) IsValueValid() error {
 	if s.value == nil {

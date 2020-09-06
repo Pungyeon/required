@@ -19,8 +19,8 @@ func TestNewByteSlice(t *testing.T) {
 	if err := Unmarshal(data, &b); err != nil {
 		t.Fatal(err)
 	}
-	if len(b.value) != 3 {
-		t.Fatalf("%v != %v", len(b.value), 3)
+	if len(b.value) != len(v.value) {
+		t.Fatalf("%v != %v", len(b.value), len(v.value))
 	}
 }
 

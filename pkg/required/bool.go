@@ -12,6 +12,7 @@ type Bool struct {
 
 var _ Required = Bool{}
 
+// NewBool returns a valid Bool with given value
 func NewBool(value bool) Bool {
 	return Bool{
 		NullBool: sql.NullBool{

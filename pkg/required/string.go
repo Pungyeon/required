@@ -10,6 +10,16 @@ type String struct {
 	sql.NullString
 }
 
+// NewString returns a valid String with given value
+func NewString(str string) String {
+	return String{
+		NullString: sql.NullString{
+			String: str,
+			Valid:  true,
+		},
+	}
+}
+
 // IsValueValid returns whether the contained value has been set
 func (s String) IsValueValid() error {
 	if s.String == "" {

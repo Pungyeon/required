@@ -11,6 +11,7 @@ type BoolSlice struct {
 
 var _ Required = &BoolSlice{}
 
+// NewBoolSlice returns a valid BoolSlice with given value
 func NewBoolSlice(booleans []bool) BoolSlice {
 	return BoolSlice{
 		value: booleans,

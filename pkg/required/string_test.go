@@ -1,12 +1,28 @@
 package required
 
 import (
+	"encoding/json"
 	"testing"
 )
 
 type Person struct {
 	Name String `json:"name"`
 	Age  int64  `json:"age"`
+}
+
+func TestNewString(t *testing.T) {
+	v := NewString("string")
+	data, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b String
+	if err := Unmarshal(data, &b); err != nil {
+		t.Fatal(err)
+	}
+	if b.Value() != v.Value() {
+		t.Fatalf("%v != %v", b.Value(), v.Value())
+	}
 }
 
 func TestStringValidation(t *testing.T) {

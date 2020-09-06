@@ -9,6 +9,13 @@ type StringSlice struct {
 	value []string
 }
 
+// NewStringSlice returns a valid StringSlice with given value
+func NewStringSlice(strings []string) StringSlice {
+	return StringSlice{
+		value: strings,
+	}
+}
+
 // Value will return the inner string type
 func (s StringSlice) Value() []string {
 	return s.value

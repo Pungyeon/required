@@ -10,6 +10,7 @@ type Float struct {
 	sql.NullFloat64
 }
 
+// NewFloat returns a valid Float with given value
 func NewFloat(value float64) Float {
 	return Float{
 		sql.NullFloat64{

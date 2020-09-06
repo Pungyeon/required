@@ -1,11 +1,27 @@
 package required
 
 import (
+	"encoding/json"
 	"testing"
 )
 
 type StringSliceChecker struct {
 	Names StringSlice `json:"names"`
+}
+
+func TestNewStringSlice(t *testing.T) {
+	v := NewStringSlice([]string{"one", "two", "three"})
+	data, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b StringSlice
+	if err := Unmarshal(data, &b); err != nil {
+		t.Fatal(err)
+	}
+	if len(b.value) != len(v.value) {
+		t.Fatalf("%v != %v", len(b.value), len(v.value))
+	}
 }
 
 func TestStringSliceValidation(t *testing.T) {

@@ -10,6 +10,18 @@ type Int struct {
 	sql.NullInt64
 }
 
+var _ Required = Int{}
+
+// NewInt returns a valid Int with given value
+func NewInt(value int64) Int {
+	return Int{
+		sql.NullInt64{
+			Int64: value,
+			Valid: true,
+		},
+	}
+}
+
 // IsValueValid returns whether the contained value has been set
 func (s Int) IsValueValid() error {
 	if !s.Valid {

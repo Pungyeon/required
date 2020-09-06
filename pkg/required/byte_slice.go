@@ -9,6 +9,7 @@ type ByteSlice struct {
 
 var _ Required = &ByteSlice{}
 
+// NewByteSlice returns a valid ByteSlice with given value
 func NewByteSlice(bytes []byte) ByteSlice {
 	return ByteSlice{
 		value: bytes,

@@ -20,8 +20,8 @@ func TestNewBool(t *testing.T) {
 	if err := Unmarshal(data, &b); err != nil {
 		t.Fatal(err)
 	}
-	if b.Bool != true {
-		t.Fatalf("%v != %v", b, true)
+	if b.Value() != v.Value() {
+		t.Fatalf("%v != %v", b.Value(), v.Value())
 	}
 }
 

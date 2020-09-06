@@ -20,8 +20,8 @@ func TestNewFloat(t *testing.T) {
 	if err := Unmarshal(data, &b); err != nil {
 		t.Fatal(err)
 	}
-	if b.Value() != 32.2 {
-		t.Fatalf("%v != %v", b.Value(), 32.2)
+	if b.Value() != v.Value() {
+		t.Fatalf("%v != %v", b.Value(), v.Value())
 	}
 }
 
