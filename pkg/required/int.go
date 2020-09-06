@@ -1,30 +1,28 @@
 package required
 
 import (
-	"database/sql"
 	"encoding/json"
 )
 
 // Int is a Int type, which is required on JSON (un)marshal
 type Int struct {
-	sql.NullInt64
+	Nullable
 }
 
 var _ Required = Int{}
 
 // NewInt returns a valid Int with given value
-func NewInt(value int64) Int {
+func NewInt(value int) Int {
 	return Int{
-		sql.NullInt64{
-			Int64: value,
-			Valid: true,
+		Nullable{
+			value: value,
 		},
 	}
 }
 
 // IsValueValid returns whether the contained value has been set
 func (s Int) IsValueValid() error {
-	if !s.Valid {
+	if s.value == nil {
 		return ErrEmptyInt
 	}
 	return nil
@@ -32,7 +30,7 @@ func (s Int) IsValueValid() error {
 
 // Value will return the inner Int type
 func (s Int) Value() int {
-	return int(s.Int64)
+	return s.value.(int)
 }
 
 // MarshalJSON is an implementation of the json.Marshaler interface
@@ -40,7 +38,7 @@ func (s Int) MarshalJSON() ([]byte, error) {
 	if err := s.IsValueValid(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(s.Int64)
+	return json.Marshal(s.Value())
 
 }
 
@@ -52,8 +50,7 @@ func (s *Int) UnmarshalJSON(data []byte) error {
 	}
 	switch x := v.(type) {
 	case float64:
-		s.Int64 = int64(x)
-		s.Valid = true
+		s.value = int(x)
 		return nil
 	default:
 		return ErrCannotUnmarshal

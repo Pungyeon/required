@@ -6,6 +6,10 @@ import (
 	"reflect"
 )
 
+type Nullable struct {
+	value interface{}
+}
+
 // Required is an interface which will enable the require.Unmarshal parser,
 // to check whether a given object / interface has a valid contained value.
 type Required interface {

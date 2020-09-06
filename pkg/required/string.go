@@ -1,28 +1,29 @@
 package required
 
 import (
-	"database/sql"
 	"encoding/json"
 )
 
 // String is a string type, which is required on JSON (un)marshal
 type String struct {
-	sql.NullString
+	Nullable
 }
 
 // NewString returns a valid String with given value
 func NewString(str string) String {
 	return String{
-		NullString: sql.NullString{
-			String: str,
-			Valid:  true,
+		Nullable{
+			value: str,
 		},
 	}
 }
 
 // IsValueValid returns whether the contained value has been set
 func (s String) IsValueValid() error {
-	if s.String == "" {
+	if s.value == nil {
+		return ErrEmptyString
+	}
+	if s.Value() == "" {
 		return ErrEmptyString
 	}
 	return nil
@@ -30,7 +31,7 @@ func (s String) IsValueValid() error {
 
 // Value will return the inner string type
 func (s String) Value() string {
-	return s.String
+	return s.value.(string)
 }
 
 // MarshalJSON is an implementation of the json.Marshaler interface
@@ -38,7 +39,7 @@ func (s String) MarshalJSON() ([]byte, error) {
 	if err := s.IsValueValid(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(s.String)
+	return json.Marshal(s.Value())
 
 }
 
@@ -50,7 +51,7 @@ func (s *String) UnmarshalJSON(data []byte) error {
 	}
 	switch x := v.(type) {
 	case string:
-		s.String = x
+		s.value = x
 		return nil
 	default:
 		return ErrCannotUnmarshal

@@ -1,13 +1,12 @@
 package required
 
 import (
-	"database/sql"
 	"encoding/json"
 )
 
 // Bool is a Bool type, which is required on JSON (un)marshal
 type Bool struct {
-	sql.NullBool
+	Nullable
 }
 
 var _ Required = Bool{}
@@ -15,21 +14,20 @@ var _ Required = Bool{}
 // NewBool returns a valid Bool with given value
 func NewBool(value bool) Bool {
 	return Bool{
-		NullBool: sql.NullBool{
-			Bool: value,
-			Valid: true,
+		Nullable{
+			value: value,
 		},
 	}
 }
 
 // Value will return the inner Bool type
 func (s Bool) Value() bool {
-	return s.Bool
+	return s.value.(bool)
 }
 
 // IsValueValid returns whether the contained value has been set
 func (s Bool) IsValueValid() error {
-	if !s.Valid {
+	if s.value == nil {
 		return ErrEmptyBool
 	}
 	return nil
@@ -40,7 +38,7 @@ func (s Bool) MarshalJSON() ([]byte, error) {
 	if err := s.IsValueValid(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(s.Bool)
+	return json.Marshal(s.Value())
 
 }
 
@@ -52,8 +50,7 @@ func (s *Bool) UnmarshalJSON(data []byte) error {
 	}
 	switch x := v.(type) {
 	case bool:
-		s.Bool = bool(x)
-		s.Valid = true
+		s.value = x
 		return nil
 	default:
 		return ErrCannotUnmarshal

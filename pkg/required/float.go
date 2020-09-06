@@ -1,28 +1,26 @@
 package required
 
 import (
-	"database/sql"
 	"encoding/json"
 )
 
 // Float is a Float type, which is required on JSON (un)marshal
 type Float struct {
-	sql.NullFloat64
+	Nullable
 }
 
 // NewFloat returns a valid Float with given value
 func NewFloat(value float64) Float {
 	return Float{
-		sql.NullFloat64{
-			Float64: value,
-			Valid:   true,
+		Nullable{
+			value: value,
 		},
 	}
 }
 
 // IsValueValid returns whether the contained value has been set
 func (s Float) IsValueValid() error {
-	if !s.Valid {
+	if s.value == nil {
 		return ErrEmptyFloat
 	}
 	return nil
@@ -30,7 +28,7 @@ func (s Float) IsValueValid() error {
 
 // Value will return the inner Float type
 func (s Float) Value() float64 {
-	return s.Float64
+	return s.value.(float64)
 }
 
 // MarshalJSON is an implementation of the json.Marshaler interface
@@ -38,7 +36,7 @@ func (s Float) MarshalJSON() ([]byte, error) {
 	if err := s.IsValueValid(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(s.Float64)
+	return json.Marshal(s.Value())
 
 }
 
@@ -50,8 +48,7 @@ func (s *Float) UnmarshalJSON(data []byte) error {
 	}
 	switch x := v.(type) {
 	case float64:
-		s.Float64 = x
-		s.Valid = true
+		s.value = x
 		return nil
 	default:
 		return ErrCannotUnmarshal
