@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 )
 
 var (
@@ -52,40 +51,42 @@ func (r *Reader) Seek(char byte) {
 }
 
 func Unmarshal(data []byte, v interface{}) error {
-	tags := make(map[string]int)
 	vo := reflect.ValueOf(v)
 	for vo.Kind() == reflect.Ptr {
 		vo = vo.Elem()
-	}
-	for i := 0; i < vo.NumField(); i++ {
-		f := vo.Type().Field(i)
-		tag := f.Tag.Get("json")
-		fmt.Printf("(%d) %s: %s\n", i, tag, f.Name)
-		tags[tag] = i
 	}
 
 	reader := &Reader{
 		data: data,
 		index: -1,
 	}
-	for reader.Next() {
-		switch reader.Value() {
-		case LEFT_CURLY:
-			// new object
-			continue
+	return reader.ParseValue(vo)
+}
+
+func (r *Reader) ParseValue(vo reflect.Value) error {
+	tags := make(map[string]int)
+	for i := 0; i < vo.NumField(); i++ {
+		f := vo.Type().Field(i)
+		tag := f.Tag.Get("json")
+		fmt.Printf("(%d) %s: %s\n", i, tag, f.Name)
+		tags[tag] = i
+	}
+	for r.Next() {
+		switch r.Value() {
 		case RIGHT_CURLY:
-			// end object
-			continue
+			r.Next()
+			return nil
 		case QUOTATION:
-			fieldName := reader.getFieldName()
+			fieldName := r.getFieldName()
 			fmt.Println(fieldName)
-			reader.parseFieldValue(tags[fieldName], vo)
+			r.parseFieldValue(tags[fieldName], vo)
 		case SPACE, NEWLINE, TAB:
 			continue
 		}
 	}
 	return nil
 }
+
 
 func (r *Reader) parseFieldValue(field int, value reflect.Value) {
 	r.Seek(COLON)
@@ -96,6 +97,12 @@ func (r *Reader) parseFieldValue(field int, value reflect.Value) {
 	var buf []byte
 	for r.Next() {
 		switch r.Value() {
+		case LEFT_CURLY:
+			v := value.Field(field)
+			if err := r.ParseValue(v); err != nil {
+				panic(err)
+			}
+			return
 		case FULLSTOP:
 			hasFloat = true
 			buf = append(buf, r.Value())
@@ -119,14 +126,13 @@ func (r *Reader) parseFieldValue(field int, value reflect.Value) {
 		value.Field(field).SetString(string(buf))
 	} else {
 		if hasFloat {
-			val, err := strconv.ParseFloat(strings.TrimSpace(string(buf)), 64)
+			val, err := strconv.ParseFloat(string(buf), 64)
 			if err != nil {
 				panic(err)
 			}
 			value.Field(field).SetFloat(val)
 		} else {
-			// assume int
-			val, err := strconv.ParseInt(strings.TrimSpace(string(buf)), 10, 64)
+			val, err := strconv.ParseInt(string(buf), 10, 64)
 			if err != nil {
 				panic(err)
 			}
