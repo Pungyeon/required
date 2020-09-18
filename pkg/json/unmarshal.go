@@ -3,6 +3,8 @@ package json
 import (
 	"fmt"
 	"reflect"
+	"strconv"
+	"strings"
 )
 
 var (
@@ -13,6 +15,8 @@ var (
 	RIGHT_CURLY byte = '}'
 	QUOTATION byte = '"'
 	COLON byte = ':'
+	COMMA byte = ','
+	FULLSTOP byte = '.'
 )
 
 type Reader struct {
@@ -48,18 +52,17 @@ func (r *Reader) Seek(char byte) {
 }
 
 func Unmarshal(data []byte, v interface{}) error {
-	tags := make(map[string]reflect.StructField)
+	tags := make(map[string]int)
 	vo := reflect.ValueOf(v)
-	vtf := vo
 	for vo.Kind() == reflect.Ptr {
 		vo = vo.Elem()
 	}
 	for i := 0; i < vo.NumField(); i++ {
 		f := vo.Type().Field(i)
 		tag := f.Tag.Get("json")
-		tags[tag] = f
+		fmt.Printf("(%d) %s: %s\n", i, tag, f.Name)
+		tags[tag] = i
 	}
-
 
 	reader := &Reader{
 		data: data,
@@ -74,33 +77,67 @@ func Unmarshal(data []byte, v interface{}) error {
 			// end object
 			continue
 		case QUOTATION:
-			// get field name
-			fieldName := reader.StringUntil(QUOTATION)
-
-			reader.Seek(COLON)
-			reader.Next() // this will crash the application at some point :sob:
-
+			fieldName := reader.getFieldName()
 			fmt.Println(fieldName)
-			// get field value
-			reader.Seek(QUOTATION)
-
-			fieldValue := reader.StringUntil(QUOTATION)
-			fmt.Println(fieldValue)
-
-			reflect.Indirect(vtf).FieldByName(
-				tags[fieldName].Name).SetString(fieldValue)
+			reader.parseFieldValue(tags[fieldName], vo)
 		case SPACE, NEWLINE, TAB:
 			continue
 		}
-		fmt.Println(string(reader.Value()))
 	}
 	return nil
 }
 
-func getValue(vo reflect.Value) reflect.Value {
-	for vo.Kind() == reflect.Ptr {
-		vo = vo.Elem()
+func (r *Reader) parseFieldValue(field int, value reflect.Value) {
+	r.Seek(COLON)
+
+	var isString bool
+	var hasFloat bool
+
+	var buf []byte
+	for r.Next() {
+		switch r.Value() {
+		case FULLSTOP:
+			hasFloat = true
+			buf = append(buf, r.Value())
+		case SPACE:
+			if !isString {
+				continue
+			}
+		case QUOTATION:
+			isString = true
+		case COMMA, RIGHT_CURLY:
+			goto PARSE
+		case TAB, NEWLINE:
+			continue
+		default:
+			buf = append(buf, r.Value())
+		}
 	}
-	return vo
+	PARSE:
+
+	if isString {
+		value.Field(field).SetString(string(buf))
+	} else {
+		if hasFloat {
+			val, err := strconv.ParseFloat(strings.TrimSpace(string(buf)), 64)
+			if err != nil {
+				panic(err)
+			}
+			value.Field(field).SetFloat(val)
+		} else {
+			// assume int
+			val, err := strconv.ParseInt(strings.TrimSpace(string(buf)), 10, 64)
+			if err != nil {
+				panic(err)
+			}
+			value.Field(field).SetInt(val)
+		}
+	}
 }
+
+func (r *Reader) getFieldName() string {
+	r.Next()
+	return r.StringUntil(QUOTATION)
+}
+
 
