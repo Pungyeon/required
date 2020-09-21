@@ -2,7 +2,6 @@ package json
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 )
 
@@ -20,6 +19,7 @@ type Ding struct {
 	Float float64 `json:"float"`
 	Object Object `json:"object"`
 	Array []int `json:"array"`
+	StringSlice []string `json:"string_slice"`
 }
 var sample = []byte(`{
 		"ding": 1,
@@ -28,7 +28,8 @@ var sample = []byte(`{
 			"name": "lasse"
 		},
 		"float": 3.2,
-		"array": [1, 2, 3]
+		"array": [1, 2, 3],
+		"string_slice": ["1", "2", "3"]
 	}`)
 
 func TestUnmarshal(t *testing.T) {
@@ -57,9 +58,16 @@ func TestUnmarshal(t *testing.T) {
 		t.Fatalf("mismatch: (%d) != (%d)", len(ding.Array), 3)
 	}
 
-	fmt.Println(ding.Array)
 	if ding.Array[2] != 3 {
 		t.Fatalf("mismatch: (%v) != (%v)", ding.Array, []int{1, 2, 3})
+	}
+
+	if len(ding.StringSlice) != 3 {
+		t.Fatalf("mismatch: (%d) != (%d)", len(ding.StringSlice), 3)
+	}
+
+	if ding.StringSlice[2] != "3" {
+		t.Fatalf("mismatch: (%v) != (%v)", ding.StringSlice, []string{"1", "2", "3"})
 	}
 }
 

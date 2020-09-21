@@ -35,6 +35,21 @@ func (r *Reader) Value() byte {
 	return r.data[r.index]
 }
 
+func (r *Reader) StringNoWhitespaceUntil(char byte) string {
+	var buf []byte
+	for r.Next() {
+		switch r.Value() {
+		case SPACE, NEWLINE, TAB, QUOTATION:
+			continue
+		case char:
+			return string(buf)
+		default:
+			buf = append(buf, r.Value())
+		}
+	}
+	return ""
+}
+
 func (r *Reader) StringUntil(char byte) string {
 	start := r.index
 	for r.Next() {
@@ -103,18 +118,37 @@ func (r *Reader) parseFieldValue(field int, value reflect.Value) {
 	}
 }
 
-func (r *Reader) SetField(object reflect.Value, field int, value string) {
-	t := object.Field(field).Kind()
+func getSetIndexFn(t reflect.Type) func(int, reflect.Value, string) {
 	switch t {
-	case reflect.Array, reflect.Slice:
-		elements := strings.Split(value, ",")
-		arr := reflect.MakeSlice(reflect.TypeOf([]int{}), len(elements), len(elements))
-		for i, element := range elements {
+	case reflect.TypeOf([]int{}):
+		return func(i int, arr reflect.Value, element string) {
 			val, err := strconv.ParseInt(element, 10, 64)
 			if err != nil {
 				panic(err)
 			}
 			arr.Index(i).SetInt(val)
+		}
+	case reflect.TypeOf([]string{}):
+		return func(i int, arr reflect.Value, element string) {
+			arr.Index(i).SetString(element)
+		}
+	default:
+		return func(i int, arr reflect.Value, element string) {
+			arr.Index(i).SetString(element)
+		}
+	}
+}
+
+func (r *Reader) SetField(object reflect.Value, field int, value string) {
+	t := object.Field(field).Kind()
+	switch t {
+	case reflect.Array, reflect.Slice:
+		elements := strings.Split(value, ",")
+		sliceType := object.Field(field).Type()
+		arr := reflect.MakeSlice(sliceType, len(elements), len(elements))
+		fn := getSetIndexFn(sliceType)
+		for i, element := range elements {
+			fn(i, arr, element)
 		}
 		object.Field(field).Set(arr)
 	case reflect.String:
@@ -137,37 +171,25 @@ func (r *Reader) SetField(object reflect.Value, field int, value string) {
 }
 
 func (r *Reader) getValue(value reflect.Value, field int) (string, bool) {
-	var isString bool
-	var isArray bool
-
 	var buf []byte
 	for r.Next() {
 		switch r.Value() {
 		case LEFT_BRACE:
-			isArray = true
-		case RIGHT_BRACE:
-			isArray = false
+			// TODO : for multi-dimensional arrays, this approach will not work.
+			// TODO : This currently also doesn't work for string slices with commas
+			return r.StringNoWhitespaceUntil(']'), true
 		case LEFT_CURLY:
 			v := value.Field(field)
 			if err := r.ParseValue(v); err != nil {
 				panic(err)
 			}
 			return "", false
-		case SPACE:
-			if !isString {
-				continue
-			}
 		case QUOTATION:
-			isString = true
-		case RIGHT_CURLY:
+			r.Next()
+			return r.StringUntil(QUOTATION), true
+		case RIGHT_CURLY, COMMA:
 			return string(buf), true
-		case COMMA:
-			if isArray {
-				buf = append(buf, r.Value())
-			} else {
-				return string(buf), true
-			}
-		case TAB, NEWLINE:
+		case TAB, NEWLINE, SPACE:
 			continue
 		default:
 			buf = append(buf, r.Value())
