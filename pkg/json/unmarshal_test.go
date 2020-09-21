@@ -1,6 +1,14 @@
 package json
 
-import "testing"
+import (
+	"encoding/json"
+	"fmt"
+	"testing"
+)
+
+type TheThing struct{
+	Ding
+}
 
 type Object struct {
 	Name string `json:"name"`
@@ -11,20 +19,21 @@ type Ding struct {
 	Dong string `json:"dong"`
 	Float float64 `json:"float"`
 	Object Object `json:"object"`
+	Array []int `json:"array"`
 }
-
-func TestUnmarshal(t *testing.T) {
-	json := []byte(`{
+var sample = []byte(`{
 		"ding": 1,
 		"dong": "hello",
-		"float": 3.2,
 		"object": {
 			"name": "lasse"
-		}
+		},
+		"float": 3.2,
+		"array": [1, 2, 3]
 	}`)
 
+func TestUnmarshal(t *testing.T) {
 	var ding Ding
-	if err := Unmarshal(json, &ding); err != nil {
+	if err := Unmarshal(sample, &ding); err != nil {
 		t.Fatal(err)
 	}
 
@@ -42,5 +51,32 @@ func TestUnmarshal(t *testing.T) {
 
 	if ding.Object.Name != "lasse" {
 		t.Fatalf("mismatch: (%s) != (%s)", ding.Object.Name, "lasse")
+	}
+
+	if len(ding.Array) != 3 {
+		t.Fatalf("mismatch: (%d) != (%d)", len(ding.Array), 3)
+	}
+
+	fmt.Println(ding.Array)
+	if ding.Array[2] != 3 {
+		t.Fatalf("mismatch: (%v) != (%v)", ding.Array, []int{1, 2, 3})
+	}
+}
+
+func BenchmarkStdUnmarshal(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var ding Ding
+		if err := json.Unmarshal(sample, &ding); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkPkgUnmarshal(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var ding Ding
+		if err := Unmarshal(sample, &ding); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
