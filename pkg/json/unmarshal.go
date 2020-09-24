@@ -9,17 +9,10 @@ import (
 )
 
 var (
-	SPACE       byte = ' '
-	TAB         byte = '\t'
-	NEWLINE     byte = '\n'
-	LEFT_BRACE  byte = '['
-	RIGHT_BRACE byte = ']'
-	LEFT_CURLY  byte = '{'
-	RIGHT_CURLY byte = '}'
-	QUOTATION   byte = '"'
-	COLON       byte = ':'
-	COMMA       byte = ','
-	FULLSTOP    byte = '.'
+	Space     byte = ' '
+	Tab       byte = '\t'
+	NewLine   byte = '\n'
+	Quotation byte = '"'
 )
 
 type TokenType string
@@ -98,9 +91,9 @@ func Lex(input string) Tokens {
 
 	for l.next() {
 		switch l.value() {
-		case SPACE, TAB, NEWLINE:
+		case Space, Tab, NewLine:
 			continue
-		case QUOTATION:
+		case Quotation:
 			str, err := l.readString()
 			if err != nil {
 				panic(err)
@@ -135,7 +128,7 @@ func (l *lexer) readString() (string, error) {
 	//l.next() // skip current quotation
 	var buf []byte
 	for l.next() {
-		if l.value() == QUOTATION {
+		if l.value() == Quotation {
 			return string(buf), nil
 		}
 		buf = append(buf, l.value())
