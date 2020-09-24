@@ -1,11 +1,10 @@
 package json
 
 import (
-	"encoding/json"
 	"testing"
 )
 
-type TheThing struct{
+type TheThing struct {
 	Ding
 }
 
@@ -14,27 +13,53 @@ type Object struct {
 }
 
 type Ding struct {
-	Ding int64 `json:"ding"`
-	Dong string `json:"dong"`
-	Float float64 `json:"float"`
-	Object Object `json:"object"`
-	Array []int `json:"array"`
+	Ding        int64    `json:"ding"`
+	Dong        string   `json:"dong"`
+	Float       float64  `json:"float"`
+	Object      Object   `json:"object"`
+	Array       []int    `json:"array"`
 	StringSlice []string `json:"string_slice"`
 }
-var sample = []byte(`{
+
+var sample = `{
 		"ding": 1,
 		"dong": "hello",
+		"float": 3.2,
 		"object": {
 			"name": "lasse"
 		},
-		"float": 3.2,
 		"array": [1, 2, 3],
-		"string_slice": ["1", "2", "3"]
-	}`)
+		"string_slice": ["1", "2", "3"],
+		"multidimensional_array": [
+			[1, 2, 3],
+			[4, 5, 6]
+		]
+	}`
 
-func TestUnmarshal(t *testing.T) {
+func TestLexer(t *testing.T) {
+	tokens := Lex(`{"foo": [1, 2, {"bar": 2}]}`)
+
+	result := tokens.Join(";")
+	expected := "{;foo;:;[;1;,;2;,;{;bar;:;2;};];}"
+
+	if result != expected {
+		t.Fatalf("%v != %v", result, expected)
+	}
+}
+
+func TestParserSimple(t *testing.T) {
+	var obj Object
+	if err := Parse(Lex(`{"name": "lasse"}`), &obj); err != nil {
+		t.Fatal(err)
+	}
+	if obj.Name != "lasse" {
+		t.Fatal("not lasse:", obj.Name)
+	}
+}
+
+func TestParseComplex(t *testing.T) {
 	var ding Ding
-	if err := Unmarshal(sample, &ding); err != nil {
+	if err := Parse(Lex(sample), &ding); err != nil {
 		t.Fatal(err)
 	}
 
@@ -71,20 +96,20 @@ func TestUnmarshal(t *testing.T) {
 	}
 }
 
-func BenchmarkStdUnmarshal(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		var ding Ding
-		if err := json.Unmarshal(sample, &ding); err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func BenchmarkPkgUnmarshal(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		var ding Ding
-		if err := Unmarshal(sample, &ding); err != nil {
-			b.Fatal(err)
-		}
-	}
-}
+//func BenchmarkStdUnmarshal(b *testing.B) {
+//	for i := 0; i < b.N; i++ {
+//		var ding Ding
+//		if err := json.Unmarshal(sample, &ding); err != nil {
+//			b.Fatal(err)
+//		}
+//	}
+//}
+//
+//func BenchmarkPkgUnmarshal(b *testing.B) {
+//	for i := 0; i < b.N; i++ {
+//		var ding Ding
+//		if err := Unmarshal(sample, &ding); err != nil {
+//			b.Fatal(err)
+//		}
+//	}
+//}

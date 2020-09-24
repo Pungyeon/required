@@ -1,121 +1,272 @@
 package json
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 )
 
 var (
-	SPACE byte = ' '
-	TAB byte = '\t'
-	NEWLINE byte = '\n'
-	LEFT_BRACE byte = '['
+	SPACE       byte = ' '
+	TAB         byte = '\t'
+	NEWLINE     byte = '\n'
+	LEFT_BRACE  byte = '['
 	RIGHT_BRACE byte = ']'
-	LEFT_CURLY byte = '{'
+	LEFT_CURLY  byte = '{'
 	RIGHT_CURLY byte = '}'
-	QUOTATION byte = '"'
-	COLON byte = ':'
-	COMMA byte = ','
-	FULLSTOP byte = '.'
+	QUOTATION   byte = '"'
+	COLON       byte = ':'
+	COMMA       byte = ','
+	FULLSTOP    byte = '.'
 )
 
-type Reader struct {
-	data []byte
-	index int
+type TokenType string
+
+const (
+	UnknownToken        TokenType = "UNKNOWN"
+	StringToken         TokenType = "STRING"
+	KeyToken            TokenType = "KEY_TOKEN"
+	ColonToken          TokenType = ":"
+	CommaToken          TokenType = ","
+	WhiteSpaceToken     TokenType = "WHITESPACE"
+	OpenBraceToken      TokenType = "["
+	ClosingBraceToken   TokenType = "]"
+	OpenBracketToken    TokenType = "("
+	ClosingBracketToken TokenType = ")"
+	OpenCurlyToken      TokenType = "{"
+	ClosingCurlyToken   TokenType = "}"
+)
+
+var TokenTypes = map[string]TokenType{
+	"UNKNOWN":    UnknownToken,
+	"STRING":     StringToken,
+	"KEY_TOKEN":  KeyToken,
+	":":          ColonToken,
+	",":          CommaToken,
+	"WHITESPACE": WhiteSpaceToken,
+	"[":          OpenBraceToken,
+	"]":          ClosingBraceToken,
+	"(":          OpenBracketToken,
+	")":          ClosingBracketToken,
+	"{":          OpenCurlyToken,
+	"}":          ClosingCurlyToken,
 }
 
-func (r *Reader) Next() bool {
-	r.index++
-	return r.index < len(r.data)
+type Token struct {
+	Value string
+	Type  TokenType
 }
 
-func (r *Reader) Value() byte {
-	return r.data[r.index]
+func NewToken(b byte) Token {
+	t, ok := TokenTypes[string(b)]
+	if !ok {
+		return Token{
+			Value: string(b),
+			Type:  UnknownToken,
+		}
+	}
+	return Token{
+		Value: string(b),
+		Type:  t,
+	}
 }
 
-func (r *Reader) StringNoWhitespaceUntil(char byte) string {
-	var buf []byte
-	for r.Next() {
-		switch r.Value() {
-		case SPACE, NEWLINE, TAB, QUOTATION:
+func (token Token) String() string {
+	return token.Value + ": " + string(token.Type)
+}
+
+type Tokens []Token
+
+func (tokens Tokens) Join(sep string) string {
+	var buf bytes.Buffer
+	for i, token := range tokens {
+		buf.WriteString(token.Value)
+		if i < len(tokens)-1 {
+			buf.WriteString(sep)
+		}
+	}
+	return buf.String()
+}
+
+func Lex(input string) Tokens {
+	l := &lexer{
+		input: input,
+		index: -1,
+	}
+
+	for l.next() {
+		switch l.value() {
+		case SPACE, TAB, NEWLINE:
 			continue
-		case char:
-			return string(buf)
+		case QUOTATION:
+			str, err := l.readString()
+			if err != nil {
+				panic(err)
+			}
+			l.output = append(l.output, Token{
+				Value: str,
+				Type:  StringToken,
+			})
 		default:
-			buf = append(buf, r.Value())
+			l.output = append(l.output, NewToken(l.value()))
 		}
 	}
-	return ""
+	return l.output
 }
 
-func (r *Reader) StringUntil(char byte) string {
-	start := r.index
-	for r.Next() {
-		if r.Value() == char {
-			return string(r.data[start:r.index])
+type lexer struct {
+	index  int
+	input  string
+	output []Token
+}
+
+func (l *lexer) next() bool {
+	l.index++
+	return l.index < len(l.input)
+}
+
+func (l *lexer) value() byte {
+	return l.input[l.index]
+}
+
+func (l *lexer) readString() (string, error) {
+	//l.next() // skip current quotation
+	var buf []byte
+	for l.next() {
+		if l.value() == QUOTATION {
+			return string(buf), nil
 		}
+		buf = append(buf, l.value())
 	}
-	return ""
+	return "", errors.New("unexpected end of file, trying to read string")
 }
 
-func (r *Reader) Seek(char byte) {
-	for r.Next() {
-		if r.Value() == char {
-			return
-		}
-	}
-}
-
-func Unmarshal(data []byte, v interface{}) error {
+func getReflectValue(v interface{}) reflect.Value {
 	vo := reflect.ValueOf(v)
 	for vo.Kind() == reflect.Ptr {
 		vo = vo.Elem()
 	}
-
-	reader := &Reader{
-		data: data,
-		index: -1,
-	}
-	return reader.ParseValue(vo)
+	return vo
 }
 
-func (r *Reader) ParseValue(vo reflect.Value) error {
+func getFieldTags(vo reflect.Value) map[string]int {
 	tags := make(map[string]int)
 	for i := 0; i < vo.NumField(); i++ {
 		f := vo.Type().Field(i)
 		tag := f.Tag.Get("json")
 		// TODO: if there is no tag, then assume the default tag
-		//fmt.Printf("(%d) %s: %s\n", i, tag, f.Name)
 		tags[tag] = i
 	}
-	for r.Next() {
-		switch r.Value() {
-		case RIGHT_CURLY:
-			r.Next()
+	return tags
+}
+
+func Parse(tokens Tokens, v interface{}) error {
+	fmt.Println(tokens.Join(";"))
+	vo := getReflectValue(v)
+	p := &parser{
+		index:  -1,
+		tokens: tokens,
+	}
+
+	return p.parse(vo)
+}
+
+func (p *parser) parse(vo reflect.Value) error {
+	p.obj = vo
+	p.tags = getFieldTags(vo)
+
+	for p.next() {
+		if p.current().Type == StringToken {
+			fmt.Println(p.current())
+		}
+		if p.current().Type == ClosingCurlyToken {
 			return nil
-		case QUOTATION:
-			fieldName := r.getFieldName()
-			r.parseFieldValue(tags[fieldName], vo)
-			if r.Value() == RIGHT_CURLY {
-				r.Next()
-				return nil
+		}
+		if p.current().Value == ":" {
+			if err := p.setValueOnField(p.previous().Value); err != nil {
+				return err
 			}
-		case SPACE, NEWLINE, TAB:
-			continue
 		}
 	}
 	return nil
 }
 
+type parser struct {
+	tokens Tokens
+	index  int
+	tags   map[string]int
+	obj    reflect.Value
+}
 
-func (r *Reader) parseFieldValue(field int, value reflect.Value) {
-	r.Seek(COLON)
-	v, ok := r.getValue(value, field)
-	if ok {
-		r.SetField(value, field, v)
+func (p *parser) previous() Token {
+	return p.tokens[p.index-1]
+}
+
+func (p *parser) current() Token {
+	return p.tokens[p.index]
+}
+
+func (p *parser) next() bool {
+	p.index++
+	return p.index < len(p.tokens)
+}
+
+func (p *parser) setValueOnField(field string) error {
+	for p.next() {
+		switch p.current().Type {
+		case OpenBraceToken:
+			return nil
+		case OpenCurlyToken:
+			return p.setInnerObject(field)
+		default:
+			return p.setPrimitive(field)
+		}
 	}
+	return fmt.Errorf("could not parse value following: %v", field)
+}
+
+func (p *parser) setArray(field string) error {
+	//case reflect.Array, reflect.Slice:
+	//	elements := strings.Split(value, ",")
+	//	sliceType := object.Field(field).Type()
+	//	arr := reflect.MakeSlice(sliceType, len(elements), len(elements))
+	//	fn := getSetIndexFn(sliceType)
+	//	for i, element := range elements {
+	//	fn(i, arr, element)
+	//	}
+	//	object.Field(field).Set(arr)
+	return nil
+}
+
+func (p *parser) setInnerObject(field string) error {
+	fmt.Println("found a curly!")
+	inner := &parser{
+		index:  p.index,
+		tokens: p.tokens,
+	}
+	obj := p.obj.Field(p.tags[field])
+	fmt.Println(obj.Type())
+	if err := inner.parse(obj); err != nil {
+		return err
+	}
+	p.index = inner.index
+	return nil
+}
+
+func (p *parser) setPrimitive(field string) error {
+	str := p.current().Value
+	for p.next() {
+		if p.current().Type == CommaToken || p.current().Type == ClosingCurlyToken {
+			fmt.Println("setting", field, str)
+			setField(p.obj, p.tags[field], str)
+			return nil
+		} else {
+			str += p.current().Value
+		}
+	}
+	return nil
 }
 
 func getSetIndexFn(t reflect.Type) func(int, reflect.Value, string) {
@@ -139,18 +290,10 @@ func getSetIndexFn(t reflect.Type) func(int, reflect.Value, string) {
 	}
 }
 
-func (r *Reader) SetField(object reflect.Value, field int, value string) {
+func setField(object reflect.Value, field int, value string) {
 	t := object.Field(field).Kind()
 	switch t {
-	case reflect.Array, reflect.Slice:
-		elements := strings.Split(value, ",")
-		sliceType := object.Field(field).Type()
-		arr := reflect.MakeSlice(sliceType, len(elements), len(elements))
-		fn := getSetIndexFn(sliceType)
-		for i, element := range elements {
-			fn(i, arr, element)
-		}
-		object.Field(field).Set(arr)
+
 	case reflect.String:
 		object.Field(field).SetString(value)
 	case reflect.Float64:
@@ -169,38 +312,3 @@ func (r *Reader) SetField(object reflect.Value, field int, value string) {
 		fmt.Printf("could not set field: %s (%s) as %v\n", object.Type().Field(field).Name, t, value)
 	}
 }
-
-func (r *Reader) getValue(value reflect.Value, field int) (string, bool) {
-	var buf []byte
-	for r.Next() {
-		switch r.Value() {
-		case LEFT_BRACE:
-			// TODO : for multi-dimensional arrays, this approach will not work.
-			// TODO : This currently also doesn't work for string slices with commas
-			return r.StringNoWhitespaceUntil(']'), true
-		case LEFT_CURLY:
-			v := value.Field(field)
-			if err := r.ParseValue(v); err != nil {
-				panic(err)
-			}
-			return "", false
-		case QUOTATION:
-			r.Next()
-			return r.StringUntil(QUOTATION), true
-		case RIGHT_CURLY, COMMA:
-			return string(buf), true
-		case TAB, NEWLINE, SPACE:
-			continue
-		default:
-			buf = append(buf, r.Value())
-		}
-	}
-	return "", false
-}
-
-func (r *Reader) getFieldName() string {
-	r.Next()
-	return r.StringUntil(QUOTATION)
-}
-
-
