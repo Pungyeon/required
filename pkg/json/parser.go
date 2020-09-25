@@ -104,7 +104,7 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 				obj = &Object{Type: Integer}
 			}
 			if p.current().Type == ClosingBraceToken {
-				goto SetArray
+				return p.setArray(sliceType, slice)
 			}
 		case OpenCurlyToken:
 			obj := reflect.New(sliceType.Elem()).Elem()
@@ -122,7 +122,10 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 			obj.add(p.current())
 		}
 	}
-SetArray:
+	return p.setArray(sliceType, slice)
+}
+
+func (p *parser) setArray(sliceType reflect.Type, slice []Object) (reflect.Value, error) {
 	arr := reflect.MakeSlice(sliceType, len(slice), len(slice))
 	for i, obj := range slice {
 		switch obj.Type {
@@ -199,7 +202,6 @@ func getReflectValue(v interface{}) reflect.Value {
 func setField(object reflect.Value, field int, value string) {
 	t := object.Field(field).Kind()
 	switch t {
-
 	case reflect.String:
 		object.Field(field).SetString(value)
 	case reflect.Float64:
