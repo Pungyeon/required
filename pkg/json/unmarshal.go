@@ -14,20 +14,6 @@ func getReflectValue(v interface{}) reflect.Value {
 	return vo
 }
 
-func getFieldTags(vo reflect.Value) map[string]int {
-	if vo.Kind() != reflect.Struct {
-		return map[string]int{}
-	}
-	tags := make(map[string]int)
-	for i := 0; i < vo.NumField(); i++ {
-		f := vo.Type().Field(i)
-		tag := f.Tag.Get("json")
-		// TODO: if there is no tag, then assume the default tag
-		tags[tag] = i
-	}
-	return tags
-}
-
 type ObjectType int
 
 const (

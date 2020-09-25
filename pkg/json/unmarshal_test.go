@@ -15,9 +15,9 @@ type TestObject struct {
 }
 
 type Ding struct {
-	Ding           int64        `json:"ding"`
-	Dong           string       `json:"dong"`
-	Float          float64      `json:"float"`
+	Ding           int64
+	Dong           string
+	Float          float64
 	Object         TestObject   `json:"object"`
 	Array          []int        `json:"array"`
 	StringSlice    []string     `json:"string_slice"`
