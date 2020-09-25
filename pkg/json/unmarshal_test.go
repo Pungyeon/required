@@ -15,13 +15,14 @@ type TestObject struct {
 }
 
 type Ding struct {
-	Ding           int64      `json:"ding"`
-	Dong           string     `json:"dong"`
-	Float          float64    `json:"float"`
-	Object         TestObject `json:"object"`
-	Array          []int      `json:"array"`
-	StringSlice    []string   `json:"string_slice"`
-	MultiDimension [][]int    `json:"multi_dimension"`
+	Ding           int64        `json:"ding"`
+	Dong           string       `json:"dong"`
+	Float          float64      `json:"float"`
+	Object         TestObject   `json:"object"`
+	Array          []int        `json:"array"`
+	StringSlice    []string     `json:"string_slice"`
+	MultiDimension [][]int      `json:"multi_dimension"`
+	ObjectArray    []TestObject `json:"obj_array"`
 }
 
 var sample = `{
@@ -36,6 +37,10 @@ var sample = `{
 		"multi_dimension": [
 			[1, 2, 3],
 			[4, 5, 6]
+		],
+		"obj_array": [
+			{"name": "lasse"},
+			{"name": "basse"}
 		]
 	}`
 
@@ -102,6 +107,17 @@ func TestParseComplex(t *testing.T) {
 		t.Fatalf("mismatch: (%v) != (%v)", ding.MultiDimension, [][]int{
 			{1, 2, 3},
 			{4, 5, 6}})
+	}
+
+	if len(ding.ObjectArray) != 2 {
+		t.Fatalf("mismatch: (%d) != (%d)", len(ding.ObjectArray), 2)
+	}
+
+	if ding.ObjectArray[1].Name != "basse" {
+		t.Fatalf("mismatch: (%v) != (%v)", ding.ObjectArray, []TestObject{
+			{Name: "lasse"},
+			{Name: "basse"},
+		})
 	}
 }
 

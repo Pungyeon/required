@@ -151,12 +151,11 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 	for p.next() {
 		switch p.current().Type {
 		case CommaToken, ClosingCurlyToken, ClosingBraceToken:
-			slice = append(slice, *obj)
-			obj = &Object{Type: Integer}
+			if obj.Value != nil {
+				slice = append(slice, *obj)
+				obj = &Object{Type: Integer}
+			}
 			if p.current().Type == ClosingBraceToken {
-				for p.next() && p.current().IsEnding() {
-					// do nothing
-				}
 				goto SetArray
 			}
 		case OpenCurlyToken:
