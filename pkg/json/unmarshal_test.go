@@ -138,6 +138,21 @@ func TestParseFloatArray(t *testing.T) {
 	}
 }
 
+func TestParseMultiArray(t *testing.T) {
+	tokens := Lex(`[
+	[1, 2, 3],
+	[4, 5, 6]
+]`)
+	if tokens.Join(";") != "[;[;1;,;2;,;3;];,;[;4;,;5;,;6;];]" {
+		t.Fatal("oh no", tokens.Join(";"))
+	}
+
+	var obj [][]int
+	if err := Parse(tokens, &obj); err != nil {
+		t.Fatal(err)
+	}
+}
+
 //func BenchmarkStdUnmarshal(b *testing.B) {
 //	for i := 0; i < b.N; i++ {
 //		var ding Ding
