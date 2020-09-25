@@ -24,6 +24,7 @@ const (
 	ClosingBracketToken TokenType = ")"
 	OpenCurlyToken      TokenType = "{"
 	ClosingCurlyToken   TokenType = "}"
+	FullStopToken       TokenType = "."
 )
 
 var TokenTypes = map[string]TokenType{
@@ -39,6 +40,7 @@ var TokenTypes = map[string]TokenType{
 	")":          ClosingBracketToken,
 	"{":          OpenCurlyToken,
 	"}":          ClosingCurlyToken,
+	".":          FullStopToken,
 }
 
 type Token struct {

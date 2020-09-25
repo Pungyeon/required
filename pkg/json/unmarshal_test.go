@@ -1,6 +1,7 @@
 package json
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -8,17 +9,17 @@ type TheThing struct {
 	Ding
 }
 
-type Object struct {
+type TestObject struct {
 	Name string `json:"name"`
 }
 
 type Ding struct {
-	Ding        int64    `json:"ding"`
-	Dong        string   `json:"dong"`
-	Float       float64  `json:"float"`
-	Object      Object   `json:"object"`
-	Array       []int    `json:"array"`
-	StringSlice []string `json:"string_slice"`
+	Ding        int64      `json:"ding"`
+	Dong        string     `json:"dong"`
+	Float       float64    `json:"float"`
+	Object      TestObject `json:"object"`
+	Array       []int      `json:"array"`
+	StringSlice []string   `json:"string_slice"`
 }
 
 var sample = `{
@@ -30,12 +31,12 @@ var sample = `{
 		},
 		"array": [1, 2, 3],
 		"string_slice": ["1", "2", "3"],
-		"multidimensional_array": [
-			[1, 2, 3],
-			[4, 5, 6]
-		]
 	}`
 
+//"multidimensional_array": [
+//[1, 2, 3],
+//[4, 5, 6]
+//]
 func TestLexer(t *testing.T) {
 	tokens := Lex(`{"foo": [1, 2, {"bar": 2}]}`)
 
@@ -48,7 +49,7 @@ func TestLexer(t *testing.T) {
 }
 
 func TestParserSimple(t *testing.T) {
-	var obj Object
+	var obj TestObject
 	if err := Parse(Lex(`{"name": "lasse"}`), &obj); err != nil {
 		t.Fatal(err)
 	}
@@ -93,6 +94,47 @@ func TestParseComplex(t *testing.T) {
 
 	if ding.StringSlice[2] != "3" {
 		t.Fatalf("mismatch: (%v) != (%v)", ding.StringSlice, []string{"1", "2", "3"})
+	}
+}
+
+func TestParseArray(t *testing.T) {
+	tokens := Lex("[1, 2, 3, 4]")
+	if tokens.Join(";") != "[;1;,;2;,;3;,;4;]" {
+		t.Fatal("oh no", tokens.Join(";"))
+	}
+
+	var obj []int
+	if err := Parse(tokens, &obj); err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Println(obj)
+	if len(obj) != 4 {
+		t.Fatal(len(obj))
+	}
+
+	if obj[2] != 3 {
+		t.Fatal("expected 3:", obj[2])
+	}
+}
+
+func TestParseFloatArray(t *testing.T) {
+	tokens := Lex("[1.1, 2.2, 3.3, 4.4]")
+	if tokens.Join(";") != "[;1;.;1;,;2;.;2;,;3;.;3;,;4;.;4;]" {
+		t.Fatal("oh no", tokens.Join(";"))
+	}
+
+	var obj []float64
+	if err := Parse(tokens, &obj); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(obj) != 4 {
+		t.Fatal(len(obj))
+	}
+
+	if obj[2] != 3.3 {
+		t.Fatal("expected 3.3:", obj[2])
 	}
 }
 

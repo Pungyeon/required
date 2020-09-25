@@ -15,6 +15,9 @@ func getReflectValue(v interface{}) reflect.Value {
 }
 
 func getFieldTags(vo reflect.Value) map[string]int {
+	if vo.Kind() != reflect.Struct {
+		return map[string]int{}
+	}
 	tags := make(map[string]int)
 	for i := 0; i < vo.NumField(); i++ {
 		f := vo.Type().Field(i)
@@ -23,6 +26,32 @@ func getFieldTags(vo reflect.Value) map[string]int {
 		tags[tag] = i
 	}
 	return tags
+}
+
+type ObjectType int
+
+const (
+	Unknown = 0
+	String  = 1
+	Integer = 2
+	Float   = 3
+	Slice   = 4
+	Obj     = 5
+)
+
+type Object struct {
+	Value string
+	Type  ObjectType
+}
+
+func (obj *Object) add(token Token) {
+	if token.Type == StringToken {
+		obj.Type = String
+	}
+	if token.Type == FullStopToken {
+		obj.Type = Float
+	}
+	obj.Value += token.Value
 }
 
 func Parse(tokens Tokens, v interface{}) error {
@@ -39,18 +68,28 @@ func Parse(tokens Tokens, v interface{}) error {
 func (p *parser) parse(vo reflect.Value) error {
 	p.obj = vo
 	p.tags = getFieldTags(vo)
+	fmt.Println(p.tags)
 
 	for p.next() {
 		if p.current().Type == StringToken {
 			fmt.Println(p.current())
 		}
-		if p.current().Type == ClosingCurlyToken {
+		if p.current().Type == OpenBraceToken {
+			arr, err := p.parseArray(vo.Type())
+			if err != nil {
+				return err
+			}
+			vo.Set(arr)
 			return nil
 		}
 		if p.current().Value == ":" {
 			if err := p.setValueOnField(p.previous().Value); err != nil {
 				return err
 			}
+		}
+		if p.current().Type == ClosingCurlyToken {
+			p.next()
+			return nil
 		}
 	}
 	return nil
@@ -80,8 +119,19 @@ func (p *parser) setValueOnField(field string) error {
 	for p.next() {
 		switch p.current().Type {
 		case OpenBraceToken:
+			fmt.Println(p.tags)
+			obj := p.obj.Field(p.tags[field])
+			fmt.Printf("field: %s, obj: %s\n", field, obj.Type())
+			arr, err := p.parseArray(obj.Type())
+			if err != nil {
+				return err
+			}
+			obj.Set(arr)
 			return nil
+			//return p.setArray(field)
 		case OpenCurlyToken:
+			fmt.Println("before:", p.tags)
+			fmt.Println("after:", p.tags)
 			return p.setInnerObject(field)
 		default:
 			return p.setPrimitive(field)
@@ -90,31 +140,61 @@ func (p *parser) setValueOnField(field string) error {
 	return fmt.Errorf("could not parse value following: %v", field)
 }
 
-func (p *parser) setArray(field string) error {
-	//case reflect.Array, reflect.Slice:
-	//	elements := strings.Split(value, ",")
-	//	sliceType := object.Field(field).Type()
-	//	arr := reflect.MakeSlice(sliceType, len(elements), len(elements))
-	//	fn := getSetIndexFn(sliceType)
-	//	for i, element := range elements {
-	//	fn(i, arr, element)
-	//	}
-	//	object.Field(field).Set(arr)
-	return nil
+func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
+	var slice []Object
+	obj := &Object{Type: Integer}
+	for p.next() {
+		switch p.current().Type {
+		case CommaToken, ClosingCurlyToken, ClosingBraceToken:
+			slice = append(slice, *obj)
+			obj = &Object{Type: Integer}
+			if p.current().Type == ClosingBraceToken {
+				goto SET_ARRAY
+			}
+		case OpenCurlyToken:
+			// dinner object
+		case OpenBraceToken:
+			// inner array
+		default:
+			obj.add(p.current())
+		}
+	}
+SET_ARRAY:
+	fmt.Println(sliceType)
+	arr := reflect.MakeSlice(sliceType, len(slice), len(slice))
+	for i, obj := range slice {
+		switch obj.Type {
+		case String:
+			arr.Index(i).SetString(obj.Value)
+		case Integer:
+			v, err := strconv.ParseInt(obj.Value, 10, 64)
+			if err != nil {
+				return arr, err
+			}
+			arr.Index(i).SetInt(v)
+		case Float:
+			v, err := strconv.ParseFloat(obj.Value, 64)
+			if err != nil {
+				return arr, err
+			}
+			arr.Index(i).SetFloat(v)
+		}
+	}
+
+	return arr, nil
 }
 
 func (p *parser) setInnerObject(field string) error {
-	fmt.Println("found a curly!")
 	inner := &parser{
 		index:  p.index,
 		tokens: p.tokens,
 	}
 	obj := p.obj.Field(p.tags[field])
-	fmt.Println(obj.Type())
 	if err := inner.parse(obj); err != nil {
 		return err
 	}
 	p.index = inner.index
+	fmt.Println("returning setInnerObject")
 	return nil
 }
 
