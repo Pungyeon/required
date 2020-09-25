@@ -1,6 +1,7 @@
 package json
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 )
@@ -14,12 +15,13 @@ type TestObject struct {
 }
 
 type Ding struct {
-	Ding        int64      `json:"ding"`
-	Dong        string     `json:"dong"`
-	Float       float64    `json:"float"`
-	Object      TestObject `json:"object"`
-	Array       []int      `json:"array"`
-	StringSlice []string   `json:"string_slice"`
+	Ding           int64      `json:"ding"`
+	Dong           string     `json:"dong"`
+	Float          float64    `json:"float"`
+	Object         TestObject `json:"object"`
+	Array          []int      `json:"array"`
+	StringSlice    []string   `json:"string_slice"`
+	MultiDimension [][]int    `json:"multi_dimension"`
 }
 
 var sample = `{
@@ -31,12 +33,12 @@ var sample = `{
 		},
 		"array": [1, 2, 3],
 		"string_slice": ["1", "2", "3"],
+		"multi_dimension": [
+			[1, 2, 3],
+			[4, 5, 6]
+		]
 	}`
 
-//"multidimensional_array": [
-//[1, 2, 3],
-//[4, 5, 6]
-//]
 func TestLexer(t *testing.T) {
 	tokens := Lex(`{"foo": [1, 2, {"bar": 2}]}`)
 
@@ -95,6 +97,12 @@ func TestParseComplex(t *testing.T) {
 	if ding.StringSlice[2] != "3" {
 		t.Fatalf("mismatch: (%v) != (%v)", ding.StringSlice, []string{"1", "2", "3"})
 	}
+
+	if ding.MultiDimension[1][0] != 4 {
+		t.Fatalf("mismatch: (%v) != (%v)", ding.MultiDimension, [][]int{
+			{1, 2, 3},
+			{4, 5, 6}})
+	}
 }
 
 func TestParseArray(t *testing.T) {
@@ -151,22 +159,88 @@ func TestParseMultiArray(t *testing.T) {
 	if err := Parse(tokens, &obj); err != nil {
 		t.Fatal(err)
 	}
+
+	if len(obj) != 2 {
+		t.Fatal("length of object:", len(obj))
+	}
+
+	if len(obj[0]) != 3 {
+		t.Fatal("length of object inner:", len(obj[0]))
+	}
+
+	if obj[1][0] != 4 {
+		t.Fatal("omg it's not 4:", obj[1][0])
+	}
 }
 
-//func BenchmarkStdUnmarshal(b *testing.B) {
-//	for i := 0; i < b.N; i++ {
-//		var ding Ding
-//		if err := json.Unmarshal(sample, &ding); err != nil {
-//			b.Fatal(err)
-//		}
-//	}
-//}
-//
-//func BenchmarkPkgUnmarshal(b *testing.B) {
-//	for i := 0; i < b.N; i++ {
-//		var ding Ding
-//		if err := Unmarshal(sample, &ding); err != nil {
-//			b.Fatal(err)
-//		}
-//	}
-//}
+func TestParseMultiStringArray(t *testing.T) {
+	tokens := Lex(`[
+	["1", "2", "3"],
+	["4", "5", "6"]
+]`)
+	if tokens.Join(";") != "[;[;1;,;2;,;3;];,;[;4;,;5;,;6;];]" {
+		t.Fatal("oh no", tokens.Join(";"))
+	}
+
+	var obj [][]string
+	if err := Parse(tokens, &obj); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(obj) != 2 {
+		t.Fatal("length of object:", len(obj))
+	}
+
+	if len(obj[0]) != 3 {
+		t.Fatal("length of object inner:", len(obj[0]))
+	}
+
+	if obj[1][0] != "4" {
+		t.Fatal("omg it's not 4:", obj[1][0])
+	}
+}
+
+func TestParseObjectArray(t *testing.T) {
+	tokens := Lex(`[
+	{
+		"name": "lasse"
+	},
+	{
+		"name": "basse"
+	}
+]`)
+	if tokens.Join(";") != "[;{;name;:;lasse;};,;{;name;:;basse;};]" {
+		t.Fatal("oh no", tokens.Join(";"))
+	}
+
+	var obj []TestObject
+	if err := Parse(tokens, &obj); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(obj) != 2 {
+		t.Fatal("length of object:", len(obj))
+	}
+
+	if obj[1].Name != "basse" {
+		t.Fatal("omg it's not basse:", obj[1].Name)
+	}
+}
+
+func BenchmarkStdUnmarshal(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var ding Ding
+		if err := json.Unmarshal([]byte(sample), &ding); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkPkgUnmarshal(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var ding Ding
+		if err := Unmarshal([]byte(sample), &ding); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

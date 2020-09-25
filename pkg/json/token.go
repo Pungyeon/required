@@ -11,6 +11,11 @@ var (
 
 type TokenType string
 
+func (t TokenType) IsEnding() bool {
+	return t == ClosingBraceToken || t == ClosingCurlyToken ||
+		t == ClosingBracketToken
+}
+
 const (
 	UnknownToken        TokenType = "UNKNOWN"
 	StringToken         TokenType = "STRING"
@@ -60,6 +65,10 @@ func NewToken(b byte) Token {
 		Value: string(b),
 		Type:  t,
 	}
+}
+
+func (token Token) IsEnding() bool {
+	return token.Type.IsEnding()
 }
 
 func (token Token) String() string {
