@@ -1,5 +1,7 @@
 # Golang - Required JSON Fields 
 
+![CI Status](https://github.com/pungyeon/required/workflows/Go/badge.svg)
+
 ## Introduction
 This package provides the capability of ensuring the presence of fields of a structure, when parsed from JSON. This project comes from many lines of code reading (more or less) `x != ""`. I had enough of this and therefore wrote this package. It's by no means perfect, but it's certainly better than nothing at all :sweat_smile:. I also wrote an article along with how I came up with this package, which you are more than welcome to give a read, to understand the inner workings of the package, as well as alternative approaches to solving this issue. 
 
