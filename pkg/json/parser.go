@@ -1,6 +1,7 @@
 package json
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -182,7 +183,7 @@ func (p *parser) setPrimitive(field string) error {
 	str := p.current().Value
 	for p.next() {
 		if p.current().Type == CommaToken || p.current().Type == ClosingCurlyToken {
-			setField(p.obj, p.tags[field], str)
+			p.setField(field, str)
 			return nil
 		} else {
 			str += p.current().Value
@@ -199,24 +200,59 @@ func getReflectValue(v interface{}) reflect.Value {
 	return vo
 }
 
-func setField(object reflect.Value, field int, value string) {
-	t := object.Field(field).Kind()
+func (p *parser) setField(field string, value string) {
+	if p.obj.Kind() == reflect.Map {
+		setFieldOnMap(p.obj, field, value)
+		return
+	}
+	setFieldonStruct(p.obj, p.tags[field], value)
+}
+
+func setFieldonStruct(object reflect.Value, field int, value string) {
+	if err := setValueOnObject(object.Field(field), value); err != nil {
+		fmt.Printf("could not set field: %s (%s) as %v\n",
+			object.Type().Field(field).Name, object.Field(field).Kind(), value)
+	}
+}
+
+func setValueOnObject(field reflect.Value, value string) error {
+	t := field.Kind()
 	switch t {
 	case reflect.String:
-		object.Field(field).SetString(value)
+		field.SetString(value)
 	case reflect.Float64:
 		val, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			panic(err)
 		}
-		object.Field(field).SetFloat(val)
+		field.SetFloat(val)
 	case reflect.Int, reflect.Int64:
 		val, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			panic(err)
 		}
-		object.Field(field).SetInt(val)
+		field.SetInt(val)
 	default:
-		fmt.Printf("could not set field: %s (%s) as %v\n", object.Type().Field(field).Name, t, value)
+		return errors.New("could not set field")
 	}
+	return nil
+}
+
+var reflectTypeString = reflect.TypeOf("")
+
+func setFieldOnMap(object reflect.Value, field string, value string) {
+	key := reflect.New(reflectTypeString).Elem()
+	key.SetString(field)
+
+	val := reflect.New(object.Type().Elem()).Elem()
+	if err := setValueOnObject(val, value); err != nil {
+		panic(err)
+	}
+
+	if object.IsNil() {
+		object.Set(
+			reflect.MakeMap(
+				reflect.MapOf(reflectTypeString, object.Type().Elem())))
+	}
+	object.SetMapIndex(key, val)
 }

@@ -243,6 +243,36 @@ func TestParseObjectArray(t *testing.T) {
 	}
 }
 
+func TestMapStringIntUnmarshal(t *testing.T) {
+	tokens := Lex(`{"number": 1, "lumber": 13}`)
+	var m map[string]int
+	if err := Parse(tokens, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["number"] != 1 {
+		t.Fatal("map parsed incorrectly:", m)
+	}
+
+	if m["lumber"] != 13 {
+		t.Fatal("map parsed incorrectly:", m)
+	}
+}
+
+func TestMapStringStringUnmarshal(t *testing.T) {
+	tokens := Lex(`{"number": "1", "lumber": "13"}`)
+	var m map[string]string
+	if err := Parse(tokens, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["number"] != "1" {
+		t.Fatal("map parsed incorrectly:", m)
+	}
+
+	if m["lumber"] != "13" {
+		t.Fatal("map parsed incorrectly:", m)
+	}
+}
+
 func BenchmarkStdUnmarshal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var ding Ding
