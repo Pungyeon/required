@@ -23,12 +23,12 @@ type Ding struct {
 	StringSlice    []string     `json:"string_slice"`
 	MultiDimension [][]int      `json:"multi_dimension"`
 	ObjectArray    []TestObject `json:"obj_array"`
+	MapObject      map[string]int
 }
 
 var sample = `{
 		"ding": 1,
 		"dong": "hello",
-		"float": 3.2,
 		"object": {
 			"name": "lasse"
 		},
@@ -41,7 +41,12 @@ var sample = `{
 		"obj_array": [
 			{"name": "lasse"},
 			{"name": "basse"}
-		]
+		],
+		"map_object": {
+			"number": 1,
+			"lumber": 13
+		},
+		"float": 3.2
 	}`
 
 func TestLexer(t *testing.T) {
@@ -118,6 +123,10 @@ func TestParseComplex(t *testing.T) {
 			{Name: "lasse"},
 			{Name: "basse"},
 		})
+	}
+
+	if ding.MapObject["lumber"] != 13 {
+		t.Fatal("map parsed incorrectly:", ding.MapObject)
 	}
 }
 
@@ -240,6 +249,36 @@ func TestParseObjectArray(t *testing.T) {
 
 	if obj[1].Name != "basse" {
 		t.Fatal("omg it's not basse:", obj[1].Name)
+	}
+}
+
+func TestMapStringIntUnmarshal(t *testing.T) {
+	tokens := Lex(`{"number": 1, "lumber": 13}`)
+	var m map[string]int
+	if err := Parse(tokens, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["number"] != 1 {
+		t.Fatal("map parsed incorrectly:", m)
+	}
+
+	if m["lumber"] != 13 {
+		t.Fatal("map parsed incorrectly:", m)
+	}
+}
+
+func TestMapStringStringUnmarshal(t *testing.T) {
+	tokens := Lex(`{"number": "1", "lumber": "13"}`)
+	var m map[string]string
+	if err := Parse(tokens, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["number"] != "1" {
+		t.Fatal("map parsed incorrectly:", m)
+	}
+
+	if m["lumber"] != "13" {
+		t.Fatal("map parsed incorrectly:", m)
 	}
 }
 
