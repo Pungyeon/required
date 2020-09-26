@@ -113,6 +113,9 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 				return obj, nil
 			}
 			slice = append(slice, Object{Type: Obj, Value: obj})
+			if p.current().Type == ClosingBraceToken {
+				return p.setArray(sliceType, slice)
+			}
 		case OpenBraceToken:
 			inner, err := p.parseArray(sliceType.Elem())
 			if err != nil {
