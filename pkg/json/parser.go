@@ -29,10 +29,7 @@ type parser struct {
 }
 
 func (p *parser) parse(vo reflect.Value) error {
-	if vo.Kind() == reflect.Ptr {
-		vo = getElemOfValue(vo)
-	}
-	p.obj = vo
+	p.obj = getElemOfValue(vo)
 	p.tags = getFieldTags(vo)
 
 	for p.next() {
