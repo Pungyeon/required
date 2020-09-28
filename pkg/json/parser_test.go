@@ -7,7 +7,7 @@ import (
 )
 
 type TheThing struct {
-	Ding
+	Obj *TestObject
 }
 
 type TestObject struct {

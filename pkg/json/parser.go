@@ -7,6 +7,10 @@ import (
 	"strconv"
 )
 
+var (
+	reflectTypeString = reflect.TypeOf("")
+)
+
 func Parse(tokens Tokens, v interface{}) error {
 	vo := getReflectValue(v)
 	p := &parser{
@@ -25,7 +29,7 @@ type parser struct {
 }
 
 func (p *parser) parse(vo reflect.Value) error {
-	p.obj = vo
+	p.obj = getElemOfValue(vo)
 	p.tags = getFieldTags(vo)
 
 	for p.next() {
@@ -196,7 +200,10 @@ func (p *parser) setPrimitive(field string) error {
 }
 
 func getReflectValue(v interface{}) reflect.Value {
-	vo := reflect.ValueOf(v)
+	return getElemOfValue(reflect.ValueOf(v))
+}
+
+func getElemOfValue(vo reflect.Value) reflect.Value {
 	for vo.Kind() == reflect.Ptr {
 		vo = vo.Elem()
 	}
@@ -212,7 +219,8 @@ func (p *parser) setField(field string, value string) {
 }
 
 func setFieldonStruct(object reflect.Value, field int, value string) {
-	if err := setValueOnObject(object.Field(field), value); err != nil {
+	obj := getElemOfValue(object)
+	if err := setValueOnObject(obj.Field(field), value); err != nil {
 		fmt.Printf("could not set field: %s (%s) as %v\n",
 			object.Type().Field(field).Name, object.Field(field).Kind(), value)
 	}
@@ -240,8 +248,6 @@ func setValueOnObject(field reflect.Value, value string) error {
 	}
 	return nil
 }
-
-var reflectTypeString = reflect.TypeOf("")
 
 func setFieldOnMap(object reflect.Value, field string, value string) {
 	key := reflect.New(reflectTypeString).Elem()
