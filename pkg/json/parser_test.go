@@ -3,7 +3,6 @@ package json
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"testing"
 )
 
@@ -281,26 +280,6 @@ func TestMapStringStringUnmarshal(t *testing.T) {
 	if m["lumber"] != "13" {
 		t.Fatal("map parsed incorrectly:", m)
 	}
-}
-
-func TestPointer(t *testing.T) {
-	var b TheThing
-	fmt.Println(setThing(&b, TestObject{Name: "lasse"}))
-	fmt.Println(b)
-	t.Error()
-}
-
-func setThing(v interface{}, o TestObject) bool {
-	val := reflect.ValueOf(v).Elem()
-	f := val.FieldByName("Obj")
-	if f.IsValid() {
-		fmt.Printf("nil: %v, set: %v\n", f.IsNil(), f.CanSet())
-		if f.IsNil() && f.CanSet() {
-			f.Set(reflect.ValueOf(&o))
-			return true
-		}
-	}
-	return false
 }
 
 func BenchmarkStdUnmarshal(b *testing.B) {

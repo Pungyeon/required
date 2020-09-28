@@ -29,14 +29,11 @@ type parser struct {
 }
 
 func (p *parser) parse(vo reflect.Value) error {
-	fmt.Println(vo.Type(), vo.Kind())
 	if vo.Kind() == reflect.Ptr {
-		fmt.Println("getting pointer")
 		vo = getElemOfValue(vo)
 	}
 	p.obj = vo
 	p.tags = getFieldTags(vo)
-	fmt.Println(p.tags)
 
 	for p.next() {
 		if p.current().Type == OpenBraceToken {
