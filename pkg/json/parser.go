@@ -28,13 +28,16 @@ func (p *parser) _parse(vo reflect.Type) (reflect.Value, error) {
 	for p.next() {
 		switch p.current().Type {
 		case OpenBraceToken:
-			return p.parseArray(vo)
+			if vo == nil {
+				return p.parseArray(reflect.ValueOf([]interface{}{}).Type())
+			} else {
+				return p.parseArray(vo)
+			}
 		case OpenCurlyToken:
-			var obj reflect.Value
 			if vo == nil { // assuming that it's an interface type
 				return p.parseMap(reflectTypeInterface)
 			} else {
-				obj = reflect.New(vo).Elem()
+				obj := reflect.New(vo).Elem()
 				if err := p.parseObject(obj); err != nil {
 					return obj, err
 				}
@@ -114,11 +117,6 @@ func (p *parser) setValueOnField(field string) error {
 			return nil
 		case OpenCurlyToken:
 			return p.setInnerObject(field)
-			//obj := p.obj.Field(p.tags[field])
-			//if err := p.parseObject(obj); err != nil {
-			//	return err
-			//}
-			//return nil
 		default:
 			return p.setPrimitive(field)
 		}
@@ -164,6 +162,14 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 func (p *parser) setArray(sliceType reflect.Type, slice []Object) (reflect.Value, error) {
 	arr := reflect.MakeSlice(sliceType, len(slice), len(slice))
 	for i, obj := range slice {
+		if sliceType == reflect.TypeOf([]interface{}{}) {
+			val, err := obj.AsValue()
+			if err != nil {
+				return val, err
+			}
+			arr.Index(i).Set(val)
+			continue
+		}
 		switch obj.Type {
 		case String:
 			arr.Index(i).SetString(obj.Value.(string))
@@ -285,7 +291,7 @@ func setValueOnObject(field reflect.Value, value string) error {
 		}
 		field.SetInt(val)
 	default:
-		return errors.New("could not set field")
+		return fmt.Errorf("could not set field - %v: %v", field, value)
 	}
 	return nil
 }

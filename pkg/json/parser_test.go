@@ -314,6 +314,10 @@ func TestParseAsReflectValue(t *testing.T) {
 				return val.Interface().(map[string]interface{})["name"].(string) == "lasse"
 			},
 		},
+		{"interface_array", Lex(`["name", "lasse"]`),
+			reflect.TypeOf(i),
+			func() bool { return val.Interface().([]interface{}) != nil },
+		},
 	}
 
 	for _, tc := range tt {
@@ -333,7 +337,6 @@ func TestParseAsReflectValue(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func BenchmarkStdUnmarshal(b *testing.B) {

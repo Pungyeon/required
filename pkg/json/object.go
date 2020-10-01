@@ -9,11 +9,12 @@ import (
 type ObjectType int
 
 const (
-	Integer = 0
-	String  = 1
-	Float   = 3
-	Slice   = 4
-	Obj     = 5
+	Integer   = 0
+	String    = 1
+	Float     = 3
+	Slice     = 4
+	Obj       = 5
+	Interface = 6
 )
 
 var (
@@ -59,7 +60,9 @@ func (obj *Object) AsValue() (reflect.Value, error) {
 func (obj *Object) add(token Token) {
 	switch token.Type {
 	case StringToken:
-		obj.Type = String
+		if obj.Type != Interface {
+			obj.Type = String
+		}
 	case FullStopToken:
 		obj.Type = Float
 	}
