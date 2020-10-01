@@ -342,7 +342,7 @@ func TestParseAsReflectValue(t *testing.T) {
 			}
 
 			var err error
-			val, err = p._parse(tc.Type)
+			val, err = p.parse(tc.Type)
 			if err != nil {
 				t.Fatal(err)
 			}

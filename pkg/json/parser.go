@@ -13,8 +13,7 @@ func Parse(tokens Tokens, v interface{}) error {
 		index:  -1,
 		tokens: tokens,
 	}
-
-	obj, err := p._parse(vo.Type())
+	obj, err := p.parse(vo.Type())
 	if err != nil {
 		return err
 	}
@@ -29,7 +28,31 @@ type parser struct {
 	obj    reflect.Value
 }
 
-func (p *parser) _parse(vo reflect.Type) (reflect.Value, error) {
+func (p *parser) previous() Token {
+	return p.tokens[p.index-1]
+}
+
+func (p *parser) current() Token {
+	return p.tokens[p.index]
+}
+
+func (p *parser) eof() bool {
+	return p.index >= len(p.tokens)
+}
+
+func (p *parser) next() bool {
+	p.index++
+	return p.index < len(p.tokens)
+}
+
+func (p *parser) peekNext() (Token, bool) {
+	if p.index < len(p.tokens)-1 {
+		return p.tokens[p.index+1], true
+	}
+	return Token{}, false
+}
+
+func (p *parser) parse(vo reflect.Type) (reflect.Value, error) {
 	for p.next() {
 		switch p.current().Type {
 		case OpenBraceToken:
@@ -55,30 +78,6 @@ func (p *parser) _parse(vo reflect.Type) (reflect.Value, error) {
 		}
 	}
 	return reflect.New(reflectTypeString), nil
-}
-
-func (p *parser) previous() Token {
-	return p.tokens[p.index-1]
-}
-
-func (p *parser) current() Token {
-	return p.tokens[p.index]
-}
-
-func (p *parser) eof() bool {
-	return p.index >= len(p.tokens)
-}
-
-func (p *parser) next() bool {
-	p.index++
-	return p.index < len(p.tokens)
-}
-
-func (p *parser) peekNext() (Token, bool) {
-	if p.index < len(p.tokens)-1 {
-		return p.tokens[p.index+1], true
-	}
-	return Token{}, false
 }
 
 func (p *parser) setValueOnField(field string) error {
@@ -192,7 +191,7 @@ func (p *parser) parseObject(vo reflect.Value) (int, error) {
 
 	for p.next() {
 		if p.current().Value == ":" {
-			// TODO (fix) cannot use _parse due to differences in the setPrimitive and parsePrimitive functions
+			// TODO (fix) cannot use parse due to differences in the setPrimitive and parsePrimitive functions
 			if err := p.setValueOnField(p.previous().Value); err != nil {
 				return p.index, err
 			}
@@ -288,7 +287,7 @@ func (p *parser) parseMap(valueType reflect.Type) (reflect.Value, error) {
 		return vmap, err
 	}
 	fmt.Println(valueType)
-	val, err := p._parse(valueType)
+	val, err := p.parse(valueType)
 	if err != nil {
 		return vmap, err
 	}
