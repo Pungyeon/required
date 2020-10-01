@@ -14,7 +14,13 @@ func Parse(tokens Tokens, v interface{}) error {
 		tokens: tokens,
 	}
 
-	return p.parse(vo)
+	//return p.parse(vo)
+	obj, err := p._parse(vo.Type())
+	if err != nil {
+		return err
+	}
+	vo.Set(obj)
+	return nil
 }
 
 type parser struct {
@@ -55,9 +61,6 @@ func (p *parser) parse(vo reflect.Value) error {
 	p.tags = getFieldTags(vo)
 
 	for p.next() {
-		if p.current().Type == StringToken {
-			fmt.Println(p.current())
-		}
 		if p.current().Type == OpenBraceToken {
 			arr, err := p.parseArray(vo.Type())
 			if err != nil {
@@ -105,7 +108,6 @@ func (p *parser) peekNext() (Token, bool) {
 
 func (p *parser) setValueOnField(field string) error {
 	for p.next() {
-		fmt.Println(p.current())
 		switch p.current().Type {
 		case OpenBraceToken:
 			obj := p.obj.Field(p.tags[field])

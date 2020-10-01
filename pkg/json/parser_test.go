@@ -2,7 +2,6 @@ package json
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"testing"
 )
@@ -142,7 +141,6 @@ func TestParseArray(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmt.Println(obj)
 	if len(obj) != 4 {
 		t.Fatal(len(obj))
 	}
@@ -296,7 +294,7 @@ func TestParseAsReflectValue(t *testing.T) {
 		{"string", Lex(`"lasse"`), reflectTypeString, func() bool { return val.String() == "lasse" }},
 		{"int", Lex(`13`), reflectTypeInteger, func() bool { return val.Int() == 13 }},
 		{"float", Lex(`42.2`), reflectTypeFloat, func() bool { return val.Float() == 42.2 }},
-		{"object", Lex(`{"name": "lasse"}`),
+		{"test_object", Lex(`{"name": "lasse"}`),
 			reflect.TypeOf(TestObject{}),
 			func() bool { return val.Interface().(TestObject).Name == "lasse" },
 		},
@@ -317,6 +315,22 @@ func TestParseAsReflectValue(t *testing.T) {
 		{"interface_array", Lex(`["name", "lasse"]`),
 			reflect.TypeOf(i),
 			func() bool { return val.Interface().([]interface{}) != nil },
+		},
+		{"ding_object", Lex(sample),
+			reflect.TypeOf(Ding{}),
+			func() bool {
+				ding := val.Interface().(Ding)
+				return ding.Ding == 1 &&
+					ding.Dong == "hello" &&
+					ding.Object.Name == "lasse" &&
+					ding.Array[2] == 3 &&
+					ding.StringSlice[2] == "3" &&
+					ding.MultiDimension[1][2] == 6 &&
+					ding.ObjectArray[1].Name == "basse" &&
+					ding.MapObject["lumber"] == 13 &&
+					ding.Float == 3.2
+
+			},
 		},
 	}
 
