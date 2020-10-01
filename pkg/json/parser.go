@@ -14,7 +14,6 @@ func Parse(tokens Tokens, v interface{}) error {
 		tokens: tokens,
 	}
 
-	//return p.parse(vo)
 	obj, err := p._parse(vo.Type())
 	if err != nil {
 		return err
@@ -44,9 +43,11 @@ func (p *parser) _parse(vo reflect.Type) (reflect.Value, error) {
 				return p.parseMap(reflectTypeInterface)
 			} else {
 				obj := reflect.New(vo).Elem()
-				if err := p.parseObject(obj); err != nil {
+				index, err := p.copy().parseObject(obj)
+				if err != nil {
 					return obj, err
 				}
+				p.index = index
 				return obj, nil
 			}
 		default:
@@ -54,32 +55,6 @@ func (p *parser) _parse(vo reflect.Type) (reflect.Value, error) {
 		}
 	}
 	return reflect.New(reflectTypeString), nil
-}
-
-func (p *parser) parse(vo reflect.Value) error {
-	p.obj = getElemOfValue(vo)
-	p.tags = getFieldTags(vo)
-
-	for p.next() {
-		if p.current().Type == OpenBraceToken {
-			arr, err := p.parseArray(vo.Type())
-			if err != nil {
-				return err
-			}
-			vo.Set(arr)
-			return nil
-		}
-		if p.current().Value == ":" {
-			if err := p.setValueOnField(p.previous().Value); err != nil {
-				return err
-			}
-		}
-		if p.eof() || p.current().Type == ClosingCurlyToken {
-			p.next()
-			return nil
-		}
-	}
-	return nil
 }
 
 func (p *parser) previous() Token {
@@ -118,7 +93,12 @@ func (p *parser) setValueOnField(field string) error {
 			obj.Set(arr)
 			return nil
 		case OpenCurlyToken:
-			return p.setInnerObject(field)
+			index, err := p.copy().parseObject(p.obj.Field(p.tags[field]))
+			if err != nil {
+				return err
+			}
+			p.index = index
+			return nil
 		default:
 			return p.setPrimitive(field)
 		}
@@ -141,9 +121,11 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 			}
 		case OpenCurlyToken:
 			obj := reflect.New(sliceType.Elem()).Elem()
-			if err := p.parseObject(obj); err != nil {
+			index, err := p.copy().parseObject(obj)
+			if err != nil {
 				return obj, nil
 			}
+			p.index = index
 			slice = append(slice, Object{Type: Obj, Value: obj})
 			if p.current().Type == ClosingBraceToken {
 				return p.setArray(sliceType, slice)
@@ -197,29 +179,30 @@ func (p *parser) setArray(sliceType reflect.Type, slice []Object) (reflect.Value
 	return arr, nil
 }
 
-func (p *parser) parseObject(obj reflect.Value) error {
-	inner := &parser{
+func (p *parser) copy() *parser {
+	return &parser{
 		index:  p.index,
 		tokens: p.tokens,
 	}
-	if err := inner.parse(obj); err != nil {
-		return err
-	}
-	p.index = inner.index
-	return nil
 }
 
-func (p *parser) setInnerObject(field string) error {
-	inner := &parser{
-		index:  p.index,
-		tokens: p.tokens,
+func (p *parser) parseObject(vo reflect.Value) (int, error) {
+	p.obj = getElemOfValue(vo)
+	p.tags = getFieldTags(vo)
+
+	for p.next() {
+		if p.current().Value == ":" {
+			// TODO (fix) cannot use _parse due to differences in the setPrimitive and parsePrimitive functions
+			if err := p.setValueOnField(p.previous().Value); err != nil {
+				return p.index, err
+			}
+		}
+		if p.eof() || p.current().Type == ClosingCurlyToken {
+			p.next()
+			return p.index, nil
+		}
 	}
-	obj := p.obj.Field(p.tags[field])
-	if err := inner.parse(obj); err != nil {
-		return err
-	}
-	p.index = inner.index
-	return nil
+	return p.index, nil
 }
 
 func (p *parser) parsePrimitive() (reflect.Value, error) {
@@ -304,6 +287,7 @@ func (p *parser) parseMap(valueType reflect.Type) (reflect.Value, error) {
 	if err != nil {
 		return vmap, err
 	}
+	fmt.Println(valueType)
 	val, err := p._parse(valueType)
 	if err != nil {
 		return vmap, err
