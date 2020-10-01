@@ -18,9 +18,9 @@ const (
 )
 
 var (
-	i64                  int64 = 1
+	i64                  int64 = 1 // TODO: How do I distinguish between i64, i32 and int?
 	reflectTypeString          = reflect.TypeOf("")
-	reflectTypeInteger         = reflect.TypeOf(i64)
+	reflectTypeInteger         = reflect.TypeOf(1)
 	reflectTypeFloat           = reflect.TypeOf(3.2)
 	reflectTypeInterface       = reflect.ValueOf(map[string]interface{}{}).Type().Elem()
 )

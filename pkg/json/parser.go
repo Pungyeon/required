@@ -74,7 +74,7 @@ func (p *parser) parse(vo reflect.Type) (reflect.Value, error) {
 				return obj, nil
 			}
 		default:
-			return p.parsePrimitive()
+			return p.current().ToValue()
 		}
 	}
 	return reflect.New(reflectTypeString), nil
@@ -106,15 +106,12 @@ func (p *parser) setValueOnField(field string) error {
 }
 
 func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
-	var slice []Object
-	obj := &Object{Type: Integer}
+	var slice []reflect.Value
 	for p.next() {
 		switch p.current().Type {
-		case CommaToken, ClosingCurlyToken, ClosingBraceToken:
-			if obj.Value != nil {
-				slice = append(slice, *obj)
-				obj = &Object{Type: Integer}
-			}
+		case CommaToken:
+			// do nothing
+		case ClosingCurlyToken, ClosingBraceToken:
 			if p.current().Type == ClosingBraceToken {
 				return p.setArray(sliceType, slice)
 			}
@@ -125,7 +122,7 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 				return obj, nil
 			}
 			p.index = index
-			slice = append(slice, Object{Type: Obj, Value: obj})
+			slice = append(slice, obj)
 			if p.current().Type == ClosingBraceToken {
 				return p.setArray(sliceType, slice)
 			}
@@ -134,45 +131,22 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 			if err != nil {
 				return inner, err
 			}
-			slice = append(slice, Object{Value: inner, Type: Slice})
+			slice = append(slice, inner)
 		default:
-			obj.add(p.current())
+			val, err := p.current().ToValue()
+			if err != nil {
+				return val, err
+			}
+			slice = append(slice, val)
 		}
 	}
 	return p.setArray(sliceType, slice)
 }
 
-func (p *parser) setArray(sliceType reflect.Type, slice []Object) (reflect.Value, error) {
+func (p *parser) setArray(sliceType reflect.Type, slice []reflect.Value) (reflect.Value, error) {
 	arr := reflect.MakeSlice(sliceType, len(slice), len(slice))
-	for i, obj := range slice {
-		if sliceType == reflect.TypeOf([]interface{}{}) {
-			val, err := obj.AsValue()
-			if err != nil {
-				return val, err
-			}
-			arr.Index(i).Set(val)
-			continue
-		}
-		switch obj.Type {
-		case String:
-			arr.Index(i).SetString(obj.Value.(string))
-		case Integer:
-			v, err := strconv.ParseInt(obj.Value.(string), 10, 64)
-			if err != nil {
-				return arr, err
-			}
-			arr.Index(i).SetInt(v)
-		case Float:
-			v, err := strconv.ParseFloat(obj.Value.(string), 64)
-			if err != nil {
-				return arr, err
-			}
-			arr.Index(i).SetFloat(v)
-		case Slice:
-			arr.Index(i).Set(obj.Value.(reflect.Value))
-		case Obj:
-			arr.Index(i).Set(obj.Value.(reflect.Value))
-		}
+	for i, val := range slice {
+		arr.Index(i).Set(val)
 	}
 
 	return arr, nil
@@ -204,19 +178,6 @@ func (p *parser) parseObject(vo reflect.Value) (int, error) {
 	return p.index, nil
 }
 
-func (p *parser) parsePrimitive() (reflect.Value, error) {
-	obj := &Object{}
-	obj.add(p.current())
-	for p.next() {
-		if p.current().Type == CommaToken || p.current().Type == ClosingCurlyToken {
-			return obj.AsValue()
-		} else {
-			obj.add(p.current())
-		}
-	}
-	return obj.AsValue()
-}
-
 func (p *parser) setPrimitive(field string) error {
 	str := p.current().Value
 	for p.next() {
@@ -246,10 +207,10 @@ func (p *parser) setField(field string, value string) {
 		setFieldOnMap(p.obj, field, value)
 		return
 	}
-	setFieldonStruct(p.obj, p.tags[field], value)
+	setFieldOnStruct(p.obj, p.tags[field], value)
 }
 
-func setFieldonStruct(object reflect.Value, field int, value string) {
+func setFieldOnStruct(object reflect.Value, field int, value string) {
 	obj := getElemOfValue(object)
 	if err := setValueOnObject(obj.Field(field), value); err != nil {
 		fmt.Printf("could not set field: %s (%s) as %v\n",

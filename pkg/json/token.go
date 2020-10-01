@@ -1,6 +1,11 @@
 package json
 
-import "bytes"
+import (
+	"bytes"
+	"fmt"
+	"reflect"
+	"strconv"
+)
 
 var (
 	Space     byte = ' '
@@ -18,6 +23,8 @@ func (t TokenType) IsEnding() bool {
 
 const (
 	UnknownToken        TokenType = "UNKNOWN"
+	IntegerToken        TokenType = "INTEGER"
+	FloatToken          TokenType = "FLOAT"
 	StringToken         TokenType = "STRING"
 	KeyToken            TokenType = "KEY_TOKEN"
 	ColonToken          TokenType = ":"
@@ -34,6 +41,8 @@ const (
 
 var TokenTypes = map[string]TokenType{
 	"UNKNOWN":    UnknownToken,
+	"INTEGER":    IntegerToken,
+	"FLOAT":      FloatToken,
 	"STRING":     StringToken,
 	"KEY_TOKEN":  KeyToken,
 	":":          ColonToken,
@@ -64,6 +73,33 @@ func NewToken(b byte) Token {
 	return Token{
 		Value: string(b),
 		Type:  t,
+	}
+}
+
+func (token Token) ToValue() (reflect.Value, error) {
+	switch token.Type {
+	case StringToken:
+		val := reflect.New(reflectTypeString).Elem()
+		val.SetString(token.Value)
+		return val, nil
+	case IntegerToken:
+		val := reflect.New(reflectTypeInteger).Elem()
+		n, err := strconv.ParseInt(token.Value, 10, 64)
+		if err != nil {
+			return val, err
+		}
+		val.SetInt(n)
+		return val, err
+	case FloatToken:
+		val := reflect.New(reflectTypeFloat).Elem()
+		f, err := strconv.ParseFloat(token.Value, 64)
+		if err != nil {
+			return val, err
+		}
+		val.SetFloat(f)
+		return val, err
+	default:
+		return reflect.New(nil), fmt.Errorf("cannot convert token to value: %v", token)
 	}
 }
 

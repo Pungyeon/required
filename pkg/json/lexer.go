@@ -13,14 +13,18 @@ func Lex(input string) Tokens {
 		case Space, Tab, NewLine:
 			continue
 		case Quotation:
-			str, err := l.readString()
+			token, err := l.readString()
 			if err != nil {
 				panic(err)
 			}
-			l.output = append(l.output, Token{
-				Value: str,
-				Type:  StringToken,
-			})
+			l.output = append(l.output, token)
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+			token, err := l.readNumber()
+			if err != nil {
+				panic(err)
+			}
+			l.output = append(l.output, token)
+			l.index--
 		default:
 			l.output = append(l.output, NewToken(l.value()))
 		}
@@ -43,14 +47,40 @@ func (l *lexer) value() byte {
 	return l.input[l.index]
 }
 
-func (l *lexer) readString() (string, error) {
+func (l *lexer) readNumber() (Token, error) {
+	tokenType := IntegerToken
+	buf := []byte{l.value()}
+	for l.next() {
+		switch l.value() {
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+			buf = append(buf, l.value())
+		case '.':
+			tokenType = FloatToken
+			buf = append(buf, l.value())
+		default:
+			return Token{
+				Value: string(buf),
+				Type:  tokenType,
+			}, nil
+		}
+	}
+	return Token{
+		Value: string(buf),
+		Type:  tokenType,
+	}, nil
+}
+
+func (l *lexer) readString() (Token, error) {
 	//l.next() // skip current quotation
 	var buf []byte
 	for l.next() {
 		if l.value() == Quotation {
-			return string(buf), nil
+			return Token{
+				Value: string(buf),
+				Type:  StringToken,
+			}, nil
 		}
 		buf = append(buf, l.value())
 	}
-	return "", errors.New("unexpected end of file, trying to read string")
+	return Token{}, errors.New("unexpected end of file, trying to read string")
 }

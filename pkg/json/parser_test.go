@@ -15,7 +15,7 @@ type TestObject struct {
 }
 
 type Ding struct {
-	Ding           int64
+	Ding           int
 	Dong           string
 	Float          float64
 	Object         TestObject   `json:"object"`
@@ -152,7 +152,7 @@ func TestParseArray(t *testing.T) {
 
 func TestParseFloatArray(t *testing.T) {
 	tokens := Lex("[1.1, 2.2, 3.3, 4.4]")
-	if tokens.Join(";") != "[;1;.;1;,;2;.;2;,;3;.;3;,;4;.;4;]" {
+	if tokens.Join(";") != "[;1.1;,;2.2;,;3.3;,;4.4;]" {
 		t.Fatal("oh no", tokens.Join(";"))
 	}
 
@@ -344,6 +344,7 @@ func TestParseAsReflectValue(t *testing.T) {
 			var err error
 			val, err = p.parse(tc.Type)
 			if err != nil {
+				t.Error(tc.tokens)
 				t.Fatal(err)
 			}
 			if !tc.check() {
