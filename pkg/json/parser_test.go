@@ -3,11 +3,12 @@ package json
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 )
 
-type TheThing struct {
-	Obj *TestObject
+type Generic struct {
+	Value interface{}
 }
 
 type TestObject struct {
@@ -280,6 +281,57 @@ func TestMapStringStringUnmarshal(t *testing.T) {
 	if m["lumber"] != "13" {
 		t.Fatal("map parsed incorrectly:", m)
 	}
+}
+
+func TestParseAsReflectValue(t *testing.T) {
+	var val reflect.Value
+	var i interface{}
+
+	tt := []struct {
+		name   string
+		tokens Tokens
+		Type   reflect.Type
+		check  func() bool
+	}{
+		{"string", Lex(`"lasse"`), reflectTypeString, func() bool { return val.String() == "lasse" }},
+		{"int", Lex(`13`), reflectTypeInteger, func() bool { return val.Int() == 13 }},
+		{"float", Lex(`42.2`), reflectTypeFloat, func() bool { return val.Float() == 42.2 }},
+		{"object", Lex(`{"name": "lasse"}`),
+			reflect.TypeOf(TestObject{}),
+			func() bool { return val.Interface().(TestObject).Name == "lasse" },
+		},
+		{"array", Lex(`["name", "lasse"]`),
+			reflect.TypeOf([]string{}),
+			func() bool { return val.Interface().([]string)[1] == "lasse" },
+		},
+		{"interface_string", Lex(`"lasse"`),
+			reflect.TypeOf(i),
+			func() bool { return val.Interface().(string) == "lasse" },
+		},
+		{"interface_object", Lex(`{"name": "lasse"}`),
+			reflect.TypeOf(i),
+			func() bool { return val.Interface().(TestObject).Name == "lasse" },
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &parser{
+				tokens: tc.tokens,
+				index:  -1,
+			}
+
+			var err error
+			val, err = p._parse(tc.Type)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !tc.check() {
+				t.Fatalf("%#v", val)
+			}
+		})
+	}
+
 }
 
 func BenchmarkStdUnmarshal(b *testing.B) {

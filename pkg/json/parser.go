@@ -7,10 +7,6 @@ import (
 	"strconv"
 )
 
-var (
-	reflectTypeString = reflect.TypeOf("")
-)
-
 func Parse(tokens Tokens, v interface{}) error {
 	vo := getReflectValue(v)
 	p := &parser{
@@ -28,11 +24,32 @@ type parser struct {
 	obj    reflect.Value
 }
 
+func (p *parser) _parse(vo reflect.Type) (reflect.Value, error) {
+	for p.next() {
+		switch p.current().Type {
+		case OpenBraceToken:
+			return p.parseArray(vo)
+		case OpenCurlyToken:
+			obj := reflect.New(vo).Elem()
+			if err := p.parseObject(obj); err != nil {
+				return obj, err
+			}
+			return obj, nil
+		default:
+			return p.parsePrimitive()
+		}
+	}
+	return reflect.New(reflectTypeString), nil
+}
+
 func (p *parser) parse(vo reflect.Value) error {
 	p.obj = getElemOfValue(vo)
 	p.tags = getFieldTags(vo)
 
 	for p.next() {
+		if p.current().Type == StringToken {
+			fmt.Println(p.current())
+		}
 		if p.current().Type == OpenBraceToken {
 			arr, err := p.parseArray(vo.Type())
 			if err != nil {
@@ -80,6 +97,7 @@ func (p *parser) peekNext() (Token, bool) {
 
 func (p *parser) setValueOnField(field string) error {
 	for p.next() {
+		fmt.Println(p.current())
 		switch p.current().Type {
 		case OpenBraceToken:
 			obj := p.obj.Field(p.tags[field])
@@ -91,6 +109,11 @@ func (p *parser) setValueOnField(field string) error {
 			return nil
 		case OpenCurlyToken:
 			return p.setInnerObject(field)
+			//obj := p.obj.Field(p.tags[field])
+			//if err := p.parseObject(obj); err != nil {
+			//	return err
+			//}
+			//return nil
 		default:
 			return p.setPrimitive(field)
 		}
@@ -184,6 +207,19 @@ func (p *parser) setInnerObject(field string) error {
 	}
 	p.index = inner.index
 	return nil
+}
+
+func (p *parser) parsePrimitive() (reflect.Value, error) {
+	obj := &Object{}
+	obj.add(p.current())
+	for p.next() {
+		if p.current().Type == CommaToken || p.current().Type == ClosingCurlyToken {
+			return obj.AsValue()
+		} else {
+			obj.add(p.current())
+		}
+	}
+	return obj.AsValue()
 }
 
 func (p *parser) setPrimitive(field string) error {
