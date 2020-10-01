@@ -30,11 +30,16 @@ func (p *parser) _parse(vo reflect.Type) (reflect.Value, error) {
 		case OpenBraceToken:
 			return p.parseArray(vo)
 		case OpenCurlyToken:
-			obj := reflect.New(vo).Elem()
-			if err := p.parseObject(obj); err != nil {
-				return obj, err
+			var obj reflect.Value
+			if vo == nil { // assuming that it's an interface type
+				return p.parseMap(reflectTypeInterface)
+			} else {
+				obj = reflect.New(vo).Elem()
+				if err := p.parseObject(obj); err != nil {
+					return obj, err
+				}
+				return obj, nil
 			}
-			return obj, nil
 		default:
 			return p.parsePrimitive()
 		}
@@ -283,6 +288,31 @@ func setValueOnObject(field reflect.Value, value string) error {
 		return errors.New("could not set field")
 	}
 	return nil
+}
+
+func (p *parser) parseMap(valueType reflect.Type) (reflect.Value, error) {
+	vmap := reflect.MakeMap(reflect.MapOf(reflectTypeString, valueType))
+	field, err := p.parseField()
+	if err != nil {
+		return vmap, err
+	}
+	val, err := p._parse(valueType)
+	if err != nil {
+		return vmap, err
+	}
+	vmap.SetMapIndex(field, val)
+	return vmap, nil
+}
+
+func (p *parser) parseField() (reflect.Value, error) {
+	for p.next() {
+		if p.current().Type == ColonToken {
+			val := reflect.New(reflectTypeString).Elem()
+			val.SetString(p.previous().Value)
+			return val, nil
+		}
+	}
+	return reflect.New(reflectTypeString).Elem(), errors.New("could not parse field")
 }
 
 func setFieldOnMap(object reflect.Value, field string, value string) {

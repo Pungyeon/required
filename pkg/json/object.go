@@ -17,10 +17,11 @@ const (
 )
 
 var (
-	i64                int64 = 1
-	reflectTypeString        = reflect.TypeOf("")
-	reflectTypeInteger       = reflect.TypeOf(i64)
-	reflectTypeFloat         = reflect.TypeOf(3.2)
+	i64                  int64 = 1
+	reflectTypeString          = reflect.TypeOf("")
+	reflectTypeInteger         = reflect.TypeOf(i64)
+	reflectTypeFloat           = reflect.TypeOf(3.2)
+	reflectTypeInterface       = reflect.ValueOf(map[string]interface{}{}).Type().Elem()
 )
 
 type Object struct {

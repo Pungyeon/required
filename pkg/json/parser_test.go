@@ -310,7 +310,9 @@ func TestParseAsReflectValue(t *testing.T) {
 		},
 		{"interface_object", Lex(`{"name": "lasse"}`),
 			reflect.TypeOf(i),
-			func() bool { return val.Interface().(TestObject).Name == "lasse" },
+			func() bool {
+				return val.Interface().(map[string]interface{})["name"].(string) == "lasse"
+			},
 		},
 	}
 
