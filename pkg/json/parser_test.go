@@ -16,6 +16,7 @@ type TestObject struct {
 
 type Ding struct {
 	Ding           int
+	Boolean        bool
 	Dong           string
 	Float          float64
 	Object         TestObject   `json:"object"`
@@ -28,6 +29,7 @@ type Ding struct {
 
 var sample = `{
 		"ding": 1,
+		"boolean": true,
 		"dong": "hello",
 		"object": {
 			"name": "lasse"
@@ -50,10 +52,10 @@ var sample = `{
 	}`
 
 func TestLexer(t *testing.T) {
-	tokens := Lex(`{"foo": [1, 2, {"bar": 2}]}`)
+	tokens := Lex(`{"foo": [1, 2, {"bar": 2}, true]}`)
 
 	result := tokens.Join(";")
-	expected := "{;foo;:;[;1;,;2;,;{;bar;:;2;};];}"
+	expected := "{;foo;:;[;1;,;2;,;{;bar;:;2;};,;true;];}"
 
 	if result != expected {
 		t.Fatalf("%v != %v", result, expected)
@@ -322,6 +324,7 @@ func TestParseAsReflectValue(t *testing.T) {
 				ding := val.Interface().(Ding)
 				return ding.Ding == 1 &&
 					ding.Dong == "hello" &&
+					ding.Boolean == true &&
 					ding.Object.Name == "lasse" &&
 					ding.Array[2] == 3 &&
 					ding.StringSlice[2] == "3" &&

@@ -37,10 +37,12 @@ const (
 	OpenCurlyToken      TokenType = "{"
 	ClosingCurlyToken   TokenType = "}"
 	FullStopToken       TokenType = "."
+	BooleanToken        TokenType = "BOOLEAN"
 )
 
 var TokenTypes = map[string]TokenType{
 	"UNKNOWN":    UnknownToken,
+	"BOOLEAN":    BooleanToken,
 	"INTEGER":    IntegerToken,
 	"FLOAT":      FloatToken,
 	"STRING":     StringToken,
@@ -98,6 +100,14 @@ func (token Token) ToValue() (reflect.Value, error) {
 		}
 		val.SetFloat(f)
 		return val, err
+	case BooleanToken:
+		val := reflect.New(reflectTypeBool).Elem()
+		if token.Value[0] == 't' {
+			val.SetBool(true)
+		} else {
+			val.SetBool(false)
+		}
+		return val, nil
 	default:
 		return reflect.New(nil), fmt.Errorf("cannot convert token to value: %v", token)
 	}

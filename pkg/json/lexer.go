@@ -25,6 +25,12 @@ func Lex(input string) Tokens {
 			}
 			l.output = append(l.output, token)
 			l.index--
+		case 't':
+			l.output = append(l.output, Token{"true", BooleanToken})
+			l.index += len("rue")
+		case 'f':
+			l.output = append(l.output, Token{"false", BooleanToken})
+			l.index += len("alse")
 		default:
 			l.output = append(l.output, NewToken(l.value()))
 		}
