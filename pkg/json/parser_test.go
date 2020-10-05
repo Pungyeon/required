@@ -15,12 +15,12 @@ type TestObject struct {
 }
 
 type Ding struct {
-	Ding           int
+	Ding           int64
 	Boolean        bool
 	Dong           string
 	Float          float64
 	Object         TestObject   `json:"object"`
-	Array          []int        `json:"array"`
+	Array          []int64      `json:"array"`
 	StringSlice    []string     `json:"string_slice"`
 	MultiDimension [][]int      `json:"multi_dimension"`
 	ObjectArray    []TestObject `json:"obj_array"`
@@ -72,63 +72,13 @@ func TestParserSimple(t *testing.T) {
 	}
 }
 
-func TestParseComplex(t *testing.T) {
-	var ding Ding
-	if err := Parse(Lex(sample), &ding); err != nil {
+func TestParsePrimitive(t *testing.T) {
+	var v int64
+	if err := Parse(Lex(`1`), &v); err != nil {
 		t.Fatal(err)
 	}
-
-	if ding.Ding != 1 {
-		t.Fatalf("mismatch: (%d) != (%d)", ding.Ding, 1)
-	}
-
-	if ding.Dong != "hello" {
-		t.Fatalf("mismatch: (%s) != (%s)", ding.Dong, "hello")
-	}
-
-	if ding.Float != 3.2 {
-		t.Fatalf("mismatch: (%f) != (%f)", ding.Float, 3.2)
-	}
-
-	if ding.Object.Name != "lasse" {
-		t.Fatalf("mismatch: (%s) != (%s)", ding.Object.Name, "lasse")
-	}
-
-	if len(ding.Array) != 3 {
-		t.Fatalf("mismatch: (%d) != (%d)", len(ding.Array), 3)
-	}
-
-	if ding.Array[2] != 3 {
-		t.Fatalf("mismatch: (%v) != (%v)", ding.Array, []int{1, 2, 3})
-	}
-
-	if len(ding.StringSlice) != 3 {
-		t.Fatalf("mismatch: (%d) != (%d)", len(ding.StringSlice), 3)
-	}
-
-	if ding.StringSlice[2] != "3" {
-		t.Fatalf("mismatch: (%v) != (%v)", ding.StringSlice, []string{"1", "2", "3"})
-	}
-
-	if ding.MultiDimension[1][0] != 4 {
-		t.Fatalf("mismatch: (%v) != (%v)", ding.MultiDimension, [][]int{
-			{1, 2, 3},
-			{4, 5, 6}})
-	}
-
-	if len(ding.ObjectArray) != 2 {
-		t.Fatalf("mismatch: (%d) != (%d)", len(ding.ObjectArray), 2)
-	}
-
-	if ding.ObjectArray[1].Name != "basse" {
-		t.Fatalf("mismatch: (%v) != (%v)", ding.ObjectArray, []TestObject{
-			{Name: "lasse"},
-			{Name: "basse"},
-		})
-	}
-
-	if ding.MapObject["lumber"] != 13 {
-		t.Fatal("map parsed incorrectly:", ding.MapObject)
+	if v != 1 {
+		t.Fatal("v not equal 1:", v)
 	}
 }
 
@@ -286,6 +236,10 @@ func TestMapStringStringUnmarshal(t *testing.T) {
 func TestParseAsReflectValue(t *testing.T) {
 	var val reflect.Value
 	var i interface{}
+	var Int64 int64
+	var Int32 int32
+	var Float64 float64
+	var Float32 float32
 
 	tt := []struct {
 		name   string
@@ -294,8 +248,12 @@ func TestParseAsReflectValue(t *testing.T) {
 		check  func() bool
 	}{
 		{"string", Lex(`"lasse"`), reflectTypeString, func() bool { return val.String() == "lasse" }},
+		{"in64", Lex(`234`), reflect.TypeOf(Int64), func() bool { return val.Int() == 234 }},
+		{"in32", Lex(`234`), reflect.TypeOf(Int32), func() bool { return val.Int() == 234 }},
 		{"int", Lex(`13`), reflectTypeInteger, func() bool { return val.Int() == 13 }},
 		{"float", Lex(`42.2`), reflectTypeFloat, func() bool { return val.Float() == 42.2 }},
+		{"float64", Lex(`42.2`), reflect.TypeOf(Float64), func() bool { return val.Float() == 42.2 }},
+		{"float32", Lex(`42.2`), reflect.TypeOf(Float32), func() bool { return val.Interface().(float32) == 42.2 }},
 		{"test_object", Lex(`{"name": "lasse"}`),
 			reflect.TypeOf(TestObject{}),
 			func() bool { return val.Interface().(TestObject).Name == "lasse" },

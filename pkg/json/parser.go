@@ -82,7 +82,7 @@ func (p *parser) parse(vo reflect.Type) (reflect.Value, error) {
 				return obj, nil
 			}
 		default:
-			return p.current().ToValue()
+			return p.current().AsValue(vo)
 		}
 	}
 	return reflect.New(reflectTypeString), nil
@@ -115,7 +115,7 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 			}
 			slice = append(slice, inner)
 		default:
-			val, err := p.current().ToValue()
+			val, err := p.current().AsValue(sliceType.Elem())
 			if err != nil {
 				return val, err
 			}
