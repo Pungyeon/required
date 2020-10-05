@@ -2,12 +2,12 @@ package json
 
 import (
 	"encoding/json"
-	"fmt"
+	"reflect"
 	"testing"
 )
 
-type TheThing struct {
-	Obj *TestObject
+type Generic struct {
+	Value interface{}
 }
 
 type TestObject struct {
@@ -15,7 +15,7 @@ type TestObject struct {
 }
 
 type Ding struct {
-	Ding           int64
+	Ding           int
 	Dong           string
 	Float          float64
 	Object         TestObject   `json:"object"`
@@ -141,7 +141,6 @@ func TestParseArray(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmt.Println(obj)
 	if len(obj) != 4 {
 		t.Fatal(len(obj))
 	}
@@ -153,7 +152,7 @@ func TestParseArray(t *testing.T) {
 
 func TestParseFloatArray(t *testing.T) {
 	tokens := Lex("[1.1, 2.2, 3.3, 4.4]")
-	if tokens.Join(";") != "[;1;.;1;,;2;.;2;,;3;.;3;,;4;.;4;]" {
+	if tokens.Join(";") != "[;1.1;,;2.2;,;3.3;,;4.4;]" {
 		t.Fatal("oh no", tokens.Join(";"))
 	}
 
@@ -279,6 +278,97 @@ func TestMapStringStringUnmarshal(t *testing.T) {
 
 	if m["lumber"] != "13" {
 		t.Fatal("map parsed incorrectly:", m)
+	}
+}
+
+func TestParseAsReflectValue(t *testing.T) {
+	var val reflect.Value
+	var i interface{}
+
+	tt := []struct {
+		name   string
+		tokens Tokens
+		Type   reflect.Type
+		check  func() bool
+	}{
+		{"string", Lex(`"lasse"`), reflectTypeString, func() bool { return val.String() == "lasse" }},
+		{"int", Lex(`13`), reflectTypeInteger, func() bool { return val.Int() == 13 }},
+		{"float", Lex(`42.2`), reflectTypeFloat, func() bool { return val.Float() == 42.2 }},
+		{"test_object", Lex(`{"name": "lasse"}`),
+			reflect.TypeOf(TestObject{}),
+			func() bool { return val.Interface().(TestObject).Name == "lasse" },
+		},
+		{"array", Lex(`["name", "lasse"]`),
+			reflect.TypeOf([]string{}),
+			func() bool { return val.Interface().([]string)[1] == "lasse" },
+		},
+		{"interface_string", Lex(`"lasse"`),
+			reflect.TypeOf(i),
+			func() bool { return val.Interface().(string) == "lasse" },
+		},
+		{"interface_object", Lex(`{"name": "lasse"}`),
+			reflect.TypeOf(i),
+			func() bool {
+				return val.Interface().(map[string]interface{})["name"].(string) == "lasse"
+			},
+		},
+		{"interface_array", Lex(`["name", "lasse"]`),
+			reflect.TypeOf(i),
+			func() bool { return val.Interface().([]interface{}) != nil },
+		},
+		{"ding_object", Lex(sample),
+			reflect.TypeOf(Ding{}),
+			func() bool {
+				ding := val.Interface().(Ding)
+				return ding.Ding == 1 &&
+					ding.Dong == "hello" &&
+					ding.Object.Name == "lasse" &&
+					ding.Array[2] == 3 &&
+					ding.StringSlice[2] == "3" &&
+					ding.MultiDimension[1][2] == 6 &&
+					ding.ObjectArray[1].Name == "basse" &&
+					ding.MapObject["lumber"] == 13 &&
+					ding.Float == 3.2
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &parser{
+				tokens: tc.tokens,
+				index:  -1,
+			}
+
+			var err error
+			val, err = p.parse(tc.Type)
+			if err != nil {
+				t.Error(tc.tokens)
+				t.Fatal(err)
+			}
+			if !tc.check() {
+				t.Fatalf("%#v", val)
+			}
+		})
+	}
+}
+
+func TestMapFollowedBy(t *testing.T) {
+	tokens := Lex(`{
+	"map_object": {
+		"number": 1,
+			"lumber": 13
+	},
+	"float": 3.2
+}`)
+	var ding Ding
+	if err := Parse(tokens, &ding); err != nil {
+		t.Fatal(err)
+	}
+	if ding.MapObject["number"] != 1 ||
+		ding.MapObject["lumber"] != 13 ||
+		ding.Float != 3.2 {
+		t.Fatal("Unexpected result:", ding)
 	}
 }
 
