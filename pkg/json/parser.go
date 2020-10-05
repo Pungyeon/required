@@ -7,6 +7,14 @@ import (
 	"strconv"
 )
 
+var (
+	i64                  int64 = 1 // TODO: How do I distinguish between i64, i32 and int?
+	reflectTypeString          = reflect.TypeOf("")
+	reflectTypeInteger         = reflect.TypeOf(1)
+	reflectTypeFloat           = reflect.TypeOf(3.2)
+	reflectTypeInterface       = reflect.ValueOf(map[string]interface{}{}).Type().Elem()
+)
+
 func Parse(tokens Tokens, v interface{}) error {
 	vo := getReflectValue(v)
 	p := &parser{
@@ -45,13 +53,6 @@ func (p *parser) next() bool {
 	return p.index < len(p.tokens)
 }
 
-func (p *parser) peekNext() (Token, bool) {
-	if p.index < len(p.tokens)-1 {
-		return p.tokens[p.index+1], true
-	}
-	return Token{}, false
-}
-
 func (p *parser) parse(vo reflect.Type) (reflect.Value, error) {
 	for p.next() {
 		switch p.current().Type {
@@ -64,6 +65,12 @@ func (p *parser) parse(vo reflect.Type) (reflect.Value, error) {
 		case OpenCurlyToken:
 			if vo == nil { // assuming that it's an interface type
 				return p.parseMap(reflectTypeInterface)
+			} else if vo.Kind() == reflect.Map {
+				obj, err := p.parseMap(vo.Elem())
+				if err != nil {
+					return obj, err
+				}
+				return obj, nil
 			} else {
 				obj := reflect.New(vo).Elem()
 				index, err := p.copy().parseObject(obj)
@@ -80,41 +87,15 @@ func (p *parser) parse(vo reflect.Type) (reflect.Value, error) {
 	return reflect.New(reflectTypeString), nil
 }
 
-func (p *parser) setValueOnField(field string) error {
-	for p.next() {
-		switch p.current().Type {
-		case OpenBraceToken:
-			obj := p.obj.Field(p.tags[field])
-			arr, err := p.parseArray(obj.Type())
-			if err != nil {
-				return err
-			}
-			obj.Set(arr)
-			return nil
-		case OpenCurlyToken:
-			index, err := p.copy().parseObject(p.obj.Field(p.tags[field]))
-			if err != nil {
-				return err
-			}
-			p.index = index
-			return nil
-		default:
-			return p.setPrimitive(field)
-		}
-	}
-	return fmt.Errorf("could not parse value following: %v", field)
-}
-
 func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 	var slice []reflect.Value
 	for p.next() {
 		switch p.current().Type {
 		case CommaToken:
 			// do nothing
-		case ClosingCurlyToken, ClosingBraceToken:
-			if p.current().Type == ClosingBraceToken {
-				return p.setArray(sliceType, slice)
-			}
+			continue
+		case ClosingBraceToken:
+			return p.setArray(sliceType, slice)
 		case OpenCurlyToken:
 			obj := reflect.New(sliceType.Elem()).Elem()
 			index, err := p.copy().parseObject(obj)
@@ -165,10 +146,12 @@ func (p *parser) parseObject(vo reflect.Value) (int, error) {
 
 	for p.next() {
 		if p.current().Value == ":" {
-			// TODO (fix) cannot use parse due to differences in the setPrimitive and parsePrimitive functions
-			if err := p.setValueOnField(p.previous().Value); err != nil {
-				return p.index, err
+			obj := p.obj.Field(p.tags[p.previous().Value])
+			val, err := p.parse(obj.Type())
+			if err != nil {
+				panic(err)
 			}
+			obj.Set(val)
 		}
 		if p.eof() || p.current().Type == ClosingCurlyToken {
 			p.next()
@@ -176,19 +159,6 @@ func (p *parser) parseObject(vo reflect.Value) (int, error) {
 		}
 	}
 	return p.index, nil
-}
-
-func (p *parser) setPrimitive(field string) error {
-	str := p.current().Value
-	for p.next() {
-		if p.current().Type == CommaToken || p.current().Type == ClosingCurlyToken {
-			p.setField(field, str)
-			return nil
-		} else {
-			str += p.current().Value
-		}
-	}
-	return nil
 }
 
 func getReflectValue(v interface{}) reflect.Value {
@@ -243,16 +213,21 @@ func setValueOnObject(field reflect.Value, value string) error {
 
 func (p *parser) parseMap(valueType reflect.Type) (reflect.Value, error) {
 	vmap := reflect.MakeMap(reflect.MapOf(reflectTypeString, valueType))
-	field, err := p.parseField()
-	if err != nil {
-		return vmap, err
+	for p.next() {
+		if p.current().Type == ClosingCurlyToken {
+			p.next()
+			break
+		}
+		field, err := p.parseField()
+		if err != nil {
+			return vmap, err
+		}
+		val, err := p.parse(valueType)
+		if err != nil {
+			return vmap, err
+		}
+		vmap.SetMapIndex(field, val)
 	}
-	fmt.Println(valueType)
-	val, err := p.parse(valueType)
-	if err != nil {
-		return vmap, err
-	}
-	vmap.SetMapIndex(field, val)
 	return vmap, nil
 }
 
@@ -268,18 +243,27 @@ func (p *parser) parseField() (reflect.Value, error) {
 }
 
 func setFieldOnMap(object reflect.Value, field string, value string) {
-	key := reflect.New(reflectTypeString).Elem()
-	key.SetString(field)
-
 	val := reflect.New(object.Type().Elem()).Elem()
 	if err := setValueOnObject(val, value); err != nil {
 		panic(err)
 	}
 
 	if object.IsNil() {
-		object.Set(
-			reflect.MakeMap(
-				reflect.MapOf(reflectTypeString, object.Type().Elem())))
+		object.Set(newReflectMap(object))
 	}
-	object.SetMapIndex(key, val)
+
+	object.SetMapIndex(
+		newMapKey(field),
+		val)
+}
+
+func newReflectMap(object reflect.Value) reflect.Value {
+	return reflect.MakeMap(
+		reflect.MapOf(reflectTypeString, object.Type().Elem()))
+}
+
+func newMapKey(field string) reflect.Value {
+	key := reflect.New(reflectTypeString).Elem()
+	key.SetString(field)
+	return key
 }

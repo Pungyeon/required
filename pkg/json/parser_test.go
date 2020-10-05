@@ -329,7 +329,6 @@ func TestParseAsReflectValue(t *testing.T) {
 					ding.ObjectArray[1].Name == "basse" &&
 					ding.MapObject["lumber"] == 13 &&
 					ding.Float == 3.2
-
 			},
 		},
 	}
@@ -351,6 +350,25 @@ func TestParseAsReflectValue(t *testing.T) {
 				t.Fatalf("%#v", val)
 			}
 		})
+	}
+}
+
+func TestMapFollowedBy(t *testing.T) {
+	tokens := Lex(`{
+	"map_object": {
+		"number": 1,
+			"lumber": 13
+	},
+	"float": 3.2
+}`)
+	var ding Ding
+	if err := Parse(tokens, &ding); err != nil {
+		t.Fatal(err)
+	}
+	if ding.MapObject["number"] != 1 ||
+		ding.MapObject["lumber"] != 13 ||
+		ding.Float != 3.2 {
+		t.Fatal("Unexpected result:", ding)
 	}
 }
 
