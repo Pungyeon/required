@@ -71,7 +71,6 @@ func (l *lexer) readNumber() (Token, error) {
 }
 
 func (l *lexer) readString() (Token, error) {
-	//l.next() // skip current quotation
 	var buf []byte
 	for l.next() {
 		if l.value() == Quotation {
