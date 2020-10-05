@@ -78,6 +78,42 @@ func NewToken(b byte) Token {
 	}
 }
 
+func (token Token) AsValue(vt reflect.Type) (reflect.Value, error) {
+	if vt == reflectTypeInterface || vt == nil {
+		return token.ToValue()
+	}
+
+	val := reflect.New(vt).Elem()
+	switch token.Type {
+	case StringToken:
+		val.SetString(token.Value)
+		return val, nil
+	case IntegerToken:
+		n, err := strconv.ParseInt(token.Value, 10, 64)
+		if err != nil {
+			return val, err
+		}
+		val.SetInt(n)
+		return val, err
+	case FloatToken:
+		f, err := strconv.ParseFloat(token.Value, 64)
+		if err != nil {
+			return val, err
+		}
+		val.SetFloat(f)
+		return val, err
+	case BooleanToken:
+		if token.Value[0] == 't' {
+			val.SetBool(true)
+		} else {
+			val.SetBool(false)
+		}
+		return val, nil
+	default:
+		return reflect.New(nil), fmt.Errorf("cannot convert token to value: %v", token)
+	}
+}
+
 func (token Token) ToValue() (reflect.Value, error) {
 	switch token.Type {
 	case StringToken:
