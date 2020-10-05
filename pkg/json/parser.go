@@ -13,6 +13,7 @@ var (
 	reflectTypeInteger         = reflect.TypeOf(1)
 	reflectTypeFloat           = reflect.TypeOf(3.2)
 	reflectTypeInterface       = reflect.ValueOf(map[string]interface{}{}).Type().Elem()
+	reflectTypeBool            = reflect.TypeOf(true)
 )
 
 func Parse(tokens Tokens, v interface{}) error {
