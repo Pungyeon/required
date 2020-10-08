@@ -55,33 +55,48 @@ func (p *parser) parse(vo reflect.Value) (reflect.Value, error) {
 	for p.next() {
 		switch p.current().Type {
 		case OpenBraceToken:
-			if vo.Type() == nil {
-				return p.parseArray(reflect.ValueOf([]interface{}{}).Type())
-			} else {
-				return p.parseArray(vo.Type())
-			}
+			return p.parseArray(determineArrayType(vo))
 		case OpenCurlyToken:
-			if vo.Kind() == reflect.Interface { // assuming that it's an interface type
-				return p.parseMap(reflectTypeInterface)
-			} else if vo.Kind() == reflect.Map {
-				obj, err := p.parseMap(vo.Type().Elem())
-				if err != nil {
-					return obj, err
-				}
-				return obj, nil
-			} else {
-				index, err := p.copy().parseObject(vo)
-				if err != nil {
-					return vo, err
-				}
-				p.index = index
-				return vo, nil
-			}
+			return p.parseObject(vo)
 		default:
 			return p.current().AsValue(vo.Type())
 		}
 	}
-	return reflect.New(reflectTypeString), nil
+	return reflect.New(reflectTypeString), nil // shouldn't this be an error?
+}
+
+func (p *parser) parseObject(vo reflect.Value) (reflect.Value, error) {
+	kind, _type := determineObjectType(vo)
+	if kind == reflect.Map {
+		return p.parseMap(_type)
+	}
+	return p.parseStructureWithCopy(vo)
+}
+
+func (p *parser) parseStructureWithCopy(vo reflect.Value) (reflect.Value, error) {
+	index, err := p.copy().parseStructure(vo)
+	if err != nil {
+		return vo, err
+	}
+	p.index = index
+	return vo, nil
+}
+
+func determineObjectType(vo reflect.Value) (reflect.Kind, reflect.Type) {
+	if vo.Kind() == reflect.Interface {
+		return reflect.Map, reflectTypeInterface
+	} else if vo.Kind() == reflect.Map {
+		return reflect.Map, vo.Type().Elem()
+	} else {
+		return vo.Kind(), vo.Type()
+	}
+}
+
+func determineArrayType(vo reflect.Value) reflect.Type {
+	if vo.Kind() == reflect.Interface {
+		return reflect.ValueOf([]interface{}{}).Type()
+	}
+	return vo.Type()
 }
 
 func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
@@ -89,13 +104,12 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 	for p.next() {
 		switch p.current().Type {
 		case CommaToken:
-			// do nothing
-			continue
+			continue // skip commas
 		case ClosingBraceToken:
 			return p.setArray(sliceType, slice)
 		case OpenCurlyToken:
 			obj := reflect.New(sliceType.Elem()).Elem()
-			index, err := p.copy().parseObject(obj)
+			index, err := p.copy().parseStructure(obj)
 			if err != nil {
 				return obj, nil
 			}
@@ -146,7 +160,7 @@ func getValueOfPointer(vo reflect.Value) reflect.Value {
 
 func (p *parser) parsePointerObject(vo reflect.Value) (int, error) {
 	ptr := getValueOfPointer(vo)
-	index, err := p.copy().parseObject(getElemOfValue(ptr))
+	index, err := p.copy().parseStructure(getElemOfValue(ptr))
 	if err != nil {
 		panic(err)
 	}
@@ -154,7 +168,7 @@ func (p *parser) parsePointerObject(vo reflect.Value) (int, error) {
 	return index, err
 }
 
-func (p *parser) parseObject(vo reflect.Value) (int, error) {
+func (p *parser) parseStructure(vo reflect.Value) (int, error) {
 	p.tags = getFieldTags(vo)
 	if vo.Kind() == reflect.Ptr {
 		return p.parsePointerObject(vo)
