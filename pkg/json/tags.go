@@ -1,24 +1,58 @@
 package json
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 )
 
-func getFieldTags(vo reflect.Value) map[string]int {
-	if vo.Kind() != reflect.Struct {
-		return map[string]int{}
+type Tag struct {
+	FieldIndex  int
+	FieldName   string
+	Required    bool
+	OmitIfEmpty bool
+}
+
+func (t *Tag) AddTagValue(value string) error {
+	switch value {
+	case "required":
+		t.Required = true
+	case "omitifempty":
+		t.OmitIfEmpty = true
+	default:
+		return fmt.Errorf("illegal tag value: %s", value)
 	}
-	tags := make(map[string]int)
+	return nil
+}
+
+func getFieldTags(vo reflect.Value) (map[string]Tag, error) {
+	if vo.Kind() != reflect.Struct {
+		return map[string]Tag{}, nil
+	}
+	tags := make(map[string]Tag)
 	for i := 0; i < vo.NumField(); i++ {
 		f := vo.Type().Field(i)
-		tag, ok := f.Tag.Lookup("json")
+		jsonTag, ok := f.Tag.Lookup("json")
 		if !ok {
-			tags[toSnakeCase(f.Name)] = i
+			tags[toSnakeCase(f.Name)] = Tag{
+				FieldIndex: i,
+				FieldName:  f.Name,
+			}
 		} else {
-			tags[tag] = i
+			tagValues := strings.Split(jsonTag, ",")
+			tag := Tag{
+				FieldIndex: i,
+				FieldName:  tagValues[0],
+			}
+			for i := 1; i < len(tagValues); i++ {
+				if err := tag.AddTagValue(tagValues[i]); err != nil {
+					return nil, err
+				}
+			}
+			tags[tag.FieldName] = tag
 		}
 	}
-	return tags
+	return tags, nil
 }
 
 var diff uint8 = 'a' - 'A'

@@ -15,7 +15,7 @@ type Ding struct {
 	Boolean        bool
 	Dong           string
 	Float          float64
-	Object         *TestObject  `json:"object"`
+	Object         *TestObject  `json:"object,required"`
 	Array          []int64      `json:"array"`
 	StringSlice    []string     `json:"string_slice"`
 	MultiDimension [][]int      `json:"multi_dimension"`

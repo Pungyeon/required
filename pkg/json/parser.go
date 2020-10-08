@@ -30,7 +30,6 @@ func Parse(tokens Tokens, v interface{}) error {
 type parser struct {
 	tokens Tokens
 	index  int
-	tags   map[string]int
 	obj    reflect.Value
 }
 
@@ -169,14 +168,18 @@ func (p *parser) parsePointerObject(vo reflect.Value) (int, error) {
 }
 
 func (p *parser) parseStructure(vo reflect.Value) (int, error) {
-	p.tags = getFieldTags(vo)
+	tags, err := getFieldTags(vo)
+	if err != nil {
+		return -1, err
+	}
 	if vo.Kind() == reflect.Ptr {
 		return p.parsePointerObject(vo)
 	}
+	// TODO : Check for required fields somehow??? :grimacing:
 
 	for p.next() {
 		if p.current().Value == ":" {
-			obj := vo.Field(p.tags[p.previous().Value])
+			obj := vo.Field(tags[p.previous().Value].FieldIndex)
 			val, err := p.parse(obj)
 			if err != nil {
 				panic(err)
