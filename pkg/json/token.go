@@ -26,6 +26,7 @@ const (
 	IntegerToken        TokenType = "INTEGER"
 	FloatToken          TokenType = "FLOAT"
 	StringToken         TokenType = "STRING"
+	NullToken           TokenType = "NULL"
 	KeyToken            TokenType = "KEY_TOKEN"
 	ColonToken          TokenType = ":"
 	CommaToken          TokenType = ","
@@ -46,6 +47,7 @@ var TokenTypes = map[string]TokenType{
 	"INTEGER":    IntegerToken,
 	"FLOAT":      FloatToken,
 	"STRING":     StringToken,
+	"NULL":       NullToken,
 	"KEY_TOKEN":  KeyToken,
 	":":          ColonToken,
 	",":          CommaToken,

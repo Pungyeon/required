@@ -31,6 +31,9 @@ func Lex(input string) Tokens {
 		case 'f':
 			l.output = append(l.output, Token{"false", BooleanToken})
 			l.index += len("alse")
+		case 'n':
+			l.output = append(l.output, Token{"null", NullToken})
+			l.index += len("ull")
 		default:
 			l.output = append(l.output, NewToken(l.value()))
 		}

@@ -2,13 +2,10 @@ package json
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 )
-
-type Generic struct {
-	Value interface{}
-}
 
 type TestObject struct {
 	Name string `json:"name"`
@@ -19,7 +16,7 @@ type Ding struct {
 	Boolean        bool
 	Dong           string
 	Float          float64
-	Object         TestObject   `json:"object"`
+	Object         *TestObject  `json:"object"`
 	Array          []int64      `json:"array"`
 	StringSlice    []string     `json:"string_slice"`
 	MultiDimension [][]int      `json:"multi_dimension"`
@@ -296,21 +293,39 @@ func TestParseAsReflectValue(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			p := &parser{
-				tokens: tc.tokens,
-				index:  -1,
-			}
-
-			var err error
-			val, err = p.parse(tc.Type)
-			if err != nil {
-				t.Error(tc.tokens)
-				t.Fatal(err)
-			}
+			//p := &parser{
+			//	tokens: tc.tokens,
+			//	index:  -1,
+			//}
+			//
+			//var err error
+			//val, err = p.parse(tc.Type)
+			//if err != nil {
+			//	t.Error(tc.tokens)
+			//	t.Fatal(err)
+			//}
 			if !tc.check() {
 				t.Fatalf("%#v", val)
 			}
 		})
+	}
+}
+
+func TestParsePointer(t *testing.T) {
+	tokens := Lex(`{
+		"object": {
+			"name": "lasse"
+		},
+	}`)
+
+	var ding Ding
+	if err := Parse(tokens, &ding); err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Println(ding)
+	if ding.Object.Name != "lasse" {
+		t.Fatal("oh no")
 	}
 }
 
@@ -331,6 +346,34 @@ func TestMapFollowedBy(t *testing.T) {
 		ding.Float != 3.2 {
 		t.Fatal("Unexpected result:", ding)
 	}
+}
+
+func TestPointers(t *testing.T) {
+	var to TestObject
+	fmt.Println("name:", to.Name)
+
+	v := reflect.ValueOf(&to).Elem()
+	field := v.FieldByName("Name")
+	field.SetString("Lasse")
+	fmt.Println("name:", to.Name)
+	t.Error()
+
+	var d Ding
+	vd := reflect.ValueOf(&d).Elem()
+	fmt.Println(vd)
+	object_field := vd.FieldByName("Object")
+
+	ptr := reflect.New(object_field.Type())
+	p2 := ptr.Elem()
+	ptr.Elem().Set(reflect.New(p2.Type().Elem()))
+
+	setString(ptr.Elem().Interface(), "Lasse")
+	fmt.Println(to)
+}
+
+func setString(v interface{}, value string) {
+	val := reflect.ValueOf(v).Elem()
+	val.FieldByName("Name").SetString(value)
 }
 
 func BenchmarkStdUnmarshal(b *testing.B) {
