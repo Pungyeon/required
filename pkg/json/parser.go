@@ -2,7 +2,6 @@ package json
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 )
 
@@ -54,10 +53,8 @@ func (p *parser) next() bool {
 
 func (p *parser) parse(vo reflect.Value) (reflect.Value, error) {
 	for p.next() {
-		fmt.Println(p.current())
 		switch p.current().Type {
 		case OpenBraceToken:
-			fmt.Println("parse_array, type:", vo.Type())
 			if vo.Type() == nil {
 				return p.parseArray(reflect.ValueOf([]interface{}{}).Type())
 			} else {
