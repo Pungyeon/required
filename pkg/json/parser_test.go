@@ -3,7 +3,6 @@ package json
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"testing"
 )
 
@@ -76,6 +75,26 @@ func TestParsePrimitive(t *testing.T) {
 	}
 	if v != 1 {
 		t.Fatal("v not equal 1:", v)
+	}
+}
+
+func TestParseArrayInStruct(t *testing.T) {
+	type Thing struct {
+		Array []int64
+	}
+	tokens := Lex(`{"array": [1, 2, 3, 4]}`)
+
+	var obj Thing
+	if err := Parse(tokens, &obj); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(obj.Array) != 4 {
+		t.Fatal(len(obj.Array))
+	}
+
+	if obj.Array[2] != 3 {
+		t.Fatal("expected 3:", obj.Array[2])
 	}
 }
 
@@ -230,82 +249,94 @@ func TestMapStringStringUnmarshal(t *testing.T) {
 	}
 }
 
+func testParse(t *testing.T, tokens Tokens, v interface{}) {
+	if err := Parse(tokens, v); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestParseAsReflectValue(t *testing.T) {
-	var val reflect.Value
-	var i interface{}
-	var Int64 int64
-	var Int32 int32
-	var Float64 float64
-	var Float32 float32
 
 	tt := []struct {
-		name   string
-		tokens Tokens
-		Type   reflect.Type
-		check  func() bool
+		name  string
+		check func() bool
 	}{
-		{"string", Lex(`"lasse"`), reflectTypeString, func() bool { return val.String() == "lasse" }},
-		{"in64", Lex(`234`), reflect.TypeOf(Int64), func() bool { return val.Int() == 234 }},
-		{"in32", Lex(`234`), reflect.TypeOf(Int32), func() bool { return val.Int() == 234 }},
-		{"int", Lex(`13`), reflectTypeInteger, func() bool { return val.Int() == 13 }},
-		{"float", Lex(`42.2`), reflectTypeFloat, func() bool { return val.Float() == 42.2 }},
-		{"float64", Lex(`42.2`), reflect.TypeOf(Float64), func() bool { return val.Float() == 42.2 }},
-		{"float32", Lex(`42.2`), reflect.TypeOf(Float32), func() bool { return val.Interface().(float32) == 42.2 }},
-		{"test_object", Lex(`{"name": "lasse"}`),
-			reflect.TypeOf(TestObject{}),
-			func() bool { return val.Interface().(TestObject).Name == "lasse" },
-		},
-		{"array", Lex(`["name", "lasse"]`),
-			reflect.TypeOf([]string{}),
-			func() bool { return val.Interface().([]string)[1] == "lasse" },
-		},
-		{"interface_string", Lex(`"lasse"`),
-			reflect.TypeOf(i),
-			func() bool { return val.Interface().(string) == "lasse" },
-		},
-		{"interface_object", Lex(`{"name": "lasse"}`),
-			reflect.TypeOf(i),
-			func() bool {
-				return val.Interface().(map[string]interface{})["name"].(string) == "lasse"
-			},
-		},
-		{"interface_array", Lex(`["name", "lasse"]`),
-			reflect.TypeOf(i),
-			func() bool { return val.Interface().([]interface{}) != nil },
-		},
-		{"ding_object", Lex(sample),
-			reflect.TypeOf(Ding{}),
-			func() bool {
-				ding := val.Interface().(Ding)
-				return ding.Ding == 1 &&
-					ding.Dong == "hello" &&
-					ding.Boolean == true &&
-					ding.Object.Name == "lasse" &&
-					ding.Array[2] == 3 &&
-					ding.StringSlice[2] == "3" &&
-					ding.MultiDimension[1][2] == 6 &&
-					ding.ObjectArray[1].Name == "basse" &&
-					ding.MapObject["lumber"] == 13 &&
-					ding.Float == 3.2
-			},
-		},
+		{name: "string", check: func() bool {
+			var v string
+			testParse(t, Lex(`"lasse"`), &v)
+			return v == "lasse"
+		}},
+		{name: "int64", check: func() bool {
+			var v int64
+			testParse(t, Lex(`234`), &v)
+			return v == 234
+		}},
+		{name: "int32", check: func() bool {
+			var v int32
+			testParse(t, Lex(`234`), &v)
+			return v == 234
+		}},
+		{name: "int", check: func() bool {
+			var v int
+			testParse(t, Lex(`234`), &v)
+			return v == 234
+		}},
+		{name: "float64", check: func() bool {
+			var v float64
+			testParse(t, Lex(`42.2`), &v)
+			return v == 42.2
+		}},
+		{name: "float32", check: func() bool {
+			var v float32
+			testParse(t, Lex(`42.2`), &v)
+			return v == 42.2
+		}},
+		{name: "test_object", check: func() bool {
+			var v TestObject
+			testParse(t, Lex(`{"name": "lasse"}`), &v)
+			return v.Name == "lasse"
+		}},
+		{name: "array", check: func() bool {
+			var v []string
+			testParse(t, Lex(`["name", "lasse"]`), &v)
+			return v[1] == "lasse"
+		}},
+		{name: "array", check: func() bool {
+			var v interface{}
+			testParse(t, Lex(`"lasse"`), &v)
+			return v.(string) == "lasse"
+		}},
+		{name: "array", check: func() bool {
+			var v interface{}
+			testParse(t, Lex(`{"name": "lasse"}`), &v)
+			return v.(map[string]interface{})["name"] == "lasse"
+		}},
+		{name: "interface_array", check: func() bool {
+			var v []interface{}
+			testParse(t, Lex(`["name", "lasse"]`), &v)
+			return v != nil &&
+				v[0].(string) == "name"
+		}},
+		{name: "ding_object", check: func() bool {
+			var ding Ding
+			testParse(t, Lex(sample), &ding)
+			return ding.Ding == 1 &&
+				ding.Dong == "hello" &&
+				ding.Boolean == true &&
+				ding.Object.Name == "lasse" &&
+				ding.Array[2] == 3 &&
+				ding.StringSlice[2] == "3" &&
+				ding.MultiDimension[1][2] == 6 &&
+				ding.ObjectArray[1].Name == "basse" &&
+				ding.MapObject["lumber"] == 13 &&
+				ding.Float == 3.2
+		}},
 	}
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			//p := &parser{
-			//	tokens: tc.tokens,
-			//	index:  -1,
-			//}
-			//
-			//var err error
-			//val, err = p.parse(tc.Type)
-			//if err != nil {
-			//	t.Error(tc.tokens)
-			//	t.Fatal(err)
-			//}
 			if !tc.check() {
-				t.Fatalf("%#v", val)
+				t.Fatalf("check failed on test: %s", tc.name)
 			}
 		})
 	}
@@ -329,6 +360,20 @@ func TestParsePointer(t *testing.T) {
 	}
 }
 
+func TestParseInterfaceString(t *testing.T) {
+	tokens := Lex(`"lasse"`)
+
+	var ding interface{}
+	if err := Parse(tokens, &ding); err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Println(ding)
+	if ding.(string) != "lasse" {
+		t.Fatal("oh no")
+	}
+}
+
 func TestMapFollowedBy(t *testing.T) {
 	tokens := Lex(`{
 	"map_object": {
@@ -346,34 +391,6 @@ func TestMapFollowedBy(t *testing.T) {
 		ding.Float != 3.2 {
 		t.Fatal("Unexpected result:", ding)
 	}
-}
-
-func TestPointers(t *testing.T) {
-	var to TestObject
-	fmt.Println("name:", to.Name)
-
-	v := reflect.ValueOf(&to).Elem()
-	field := v.FieldByName("Name")
-	field.SetString("Lasse")
-	fmt.Println("name:", to.Name)
-	t.Error()
-
-	var d Ding
-	vd := reflect.ValueOf(&d).Elem()
-	fmt.Println(vd)
-	object_field := vd.FieldByName("Object")
-
-	ptr := reflect.New(object_field.Type())
-	p2 := ptr.Elem()
-	ptr.Elem().Set(reflect.New(p2.Type().Elem()))
-
-	setString(ptr.Elem().Interface(), "Lasse")
-	fmt.Println(to)
-}
-
-func setString(v interface{}, value string) {
-	val := reflect.ValueOf(v).Elem()
-	val.FieldByName("Name").SetString(value)
 }
 
 func BenchmarkStdUnmarshal(b *testing.B) {
