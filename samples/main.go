@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/Pungyeon/json-validation/pkg/required"
 )
 
@@ -38,5 +36,4 @@ func main() {
 	if err := required.Unmarshal(jsonBytes, &customer); err != nil {
 		panic(err)
 	}
-	fmt.Println(customer)
 }
