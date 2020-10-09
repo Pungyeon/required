@@ -2,7 +2,6 @@ package json
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 )
 
@@ -15,7 +14,7 @@ type Ding struct {
 	Boolean        bool
 	Dong           string
 	Float          float64
-	Object         *TestObject  `json:"object,required"`
+	Object         *TestObject  `json:"object"`
 	Array          []int64      `json:"array"`
 	StringSlice    []string     `json:"string_slice"`
 	MultiDimension [][]int      `json:"multi_dimension"`
@@ -354,7 +353,6 @@ func TestParsePointer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmt.Println(ding)
 	if ding.Object.Name != "lasse" {
 		t.Fatal("oh no")
 	}
@@ -368,7 +366,6 @@ func TestParseInterfaceString(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmt.Println(ding)
 	if ding.(string) != "lasse" {
 		t.Fatal("oh no")
 	}
@@ -390,6 +387,21 @@ func TestMapFollowedBy(t *testing.T) {
 		ding.MapObject["lumber"] != 13 ||
 		ding.Float != 3.2 {
 		t.Fatal("Unexpected result:", ding)
+	}
+}
+
+func TestRequiredFields(t *testing.T) {
+	type RequiredBoi struct {
+		Name string `json:"name,required"`
+	}
+
+	var r RequiredBoi
+	if err := Parse(Lex(`{}`), &r); !IsRequiredErr(err) {
+		t.Fatal("no required error, or unexpected error returned:", err)
+	}
+
+	if err := Parse(Lex(`{"name": "lasse"}`), &r); err != nil {
+		t.Fatal(err)
 	}
 }
 

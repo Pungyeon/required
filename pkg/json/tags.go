@@ -1,16 +1,57 @@
 package json
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 )
+
+var (
+	errRequiredField = errors.New("required field missing")
+)
+
+func IsRequiredErr(err error) bool {
+	_, ok := err.(requiredErr)
+	return ok
+}
+
+type requiredErr struct {
+	err   error
+	field string
+}
+
+func (err requiredErr) Error() string {
+	return fmt.Sprintf("%v: %s", err.err, err.field)
+}
+
+var _ error = &requiredErr{}
+
+type Tags map[string]Tag
+
+func (tags Tags) Set(tag Tag) {
+	tag.IsSet = true
+	tags[tag.FieldName] = tag
+}
+
+func (tags Tags) CheckRequired() error {
+	for _, tag := range tags {
+		if tag.Required && !tag.IsSet {
+			return requiredErr{
+				err:   errRequiredField,
+				field: tag.FieldName,
+			}
+		}
+	}
+	return nil
+}
 
 type Tag struct {
 	FieldIndex  int
 	FieldName   string
 	Required    bool
 	OmitIfEmpty bool
+	IsSet       bool
 }
 
 func (t *Tag) AddTagValue(value string) error {
@@ -25,11 +66,11 @@ func (t *Tag) AddTagValue(value string) error {
 	return nil
 }
 
-func getFieldTags(vo reflect.Value) (map[string]Tag, error) {
+func getFieldTags(vo reflect.Value) (Tags, error) {
 	if vo.Kind() != reflect.Struct {
 		return map[string]Tag{}, nil
 	}
-	tags := make(map[string]Tag)
+	tags := Tags(make(map[string]Tag))
 	for i := 0; i < vo.NumField(); i++ {
 		f := vo.Type().Field(i)
 		jsonTag, ok := f.Tag.Lookup("json")

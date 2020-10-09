@@ -175,23 +175,23 @@ func (p *parser) parseStructure(vo reflect.Value) (int, error) {
 	if vo.Kind() == reflect.Ptr {
 		return p.parsePointerObject(vo)
 	}
-	// TODO : Check for required fields somehow??? :grimacing:
-
 	for p.next() {
 		if p.current().Value == ":" {
-			obj := vo.Field(tags[p.previous().Value].FieldIndex)
+			tag := tags[p.previous().Value]
+			obj := vo.Field(tag.FieldIndex)
 			val, err := p.parse(obj)
 			if err != nil {
 				panic(err)
 			}
+			tags.Set(tag)
 			obj.Set(val)
 		}
 		if p.eof() || p.current().Type == ClosingCurlyToken {
 			p.next()
-			return p.index, nil
+			return p.index, tags.CheckRequired()
 		}
 	}
-	return p.index, nil
+	return p.index, tags.CheckRequired()
 }
 
 func getReflectValue(v interface{}) reflect.Value {
