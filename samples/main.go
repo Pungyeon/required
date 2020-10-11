@@ -1,23 +1,21 @@
 package main
 
 import (
-	"fmt"
-
-	"github.com/Pungyeon/json-validation/pkg/required"
+	"github.com/Pungyeon/json-validation/pkg/json"
 )
 
 type Customer struct {
-	ID      int32                `json:"id"`
-	Name    required.String      `json:"name"`
-	Address Address              `json:"address"`
-	Tags    required.StringSlice `json:"tags"`
+	ID      int32    `json:"id"`
+	Name    string   `json:"name,required"`
+	Address Address  `json:"address"`
+	Tags    []string `json:"tags,required"`
 }
 
 type Address struct {
-	StreetAddress1 required.String `json:"street_address_1"`
-	StreetAddress2 string          `json:"street_address_2"`
-	Country        required.String `json:"country"`
-	PostalCode     required.Int    `json:"postal_code"`
+	StreetAddress1 string `json:"street_address_1,required"`
+	StreetAddress2 string `json:"street_address_2"`
+	Country        string `json:"country,required"`
+	PostalCode     int    `json:"postal_code,required"`
 }
 
 func main() {
@@ -35,8 +33,7 @@ func main() {
 	}`)
 
 	var customer Customer
-	if err := required.Unmarshal(jsonBytes, &customer); err != nil {
+	if err := json.Unmarshal(jsonBytes, &customer); err != nil {
 		panic(err)
 	}
-	fmt.Println(customer)
 }
