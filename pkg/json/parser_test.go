@@ -46,8 +46,16 @@ var sample = `{
 		"float": 3.2
 	}`
 
+func LexString(t *testing.T, input string) Tokens {
+	tokens, err := Lex(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tokens
+}
+
 func TestLexer(t *testing.T) {
-	tokens := Lex(`{"foo": [1, 2, {"bar": 2}, true]}`)
+	tokens := LexString(t, `{"foo": [1, 2, {"bar": 2}, true]}`)
 
 	result := tokens.Join(";")
 	expected := "{;foo;:;[;1;,;2;,;{;bar;:;2;};,;true;];}"
@@ -59,7 +67,7 @@ func TestLexer(t *testing.T) {
 
 func TestParserSimple(t *testing.T) {
 	var obj TestObject
-	if err := Parse(Lex(`{"name": "lasse"}`), &obj); err != nil {
+	if err := Parse(LexString(t, `{"name": "lasse"}`), &obj); err != nil {
 		t.Fatal(err)
 	}
 	if obj.Name != "lasse" {
@@ -69,7 +77,7 @@ func TestParserSimple(t *testing.T) {
 
 func TestParsePrimitive(t *testing.T) {
 	var v int64
-	if err := Parse(Lex(`1`), &v); err != nil {
+	if err := Parse(LexString(t, `1`), &v); err != nil {
 		t.Fatal(err)
 	}
 	if v != 1 {
@@ -81,7 +89,7 @@ func TestParseArrayInStruct(t *testing.T) {
 	type Thing struct {
 		Array []int64
 	}
-	tokens := Lex(`{"array": [1, 2, 3, 4]}`)
+	tokens := LexString(t, `{"array": [1, 2, 3, 4]}`)
 
 	var obj Thing
 	if err := Parse(tokens, &obj); err != nil {
@@ -98,7 +106,7 @@ func TestParseArrayInStruct(t *testing.T) {
 }
 
 func TestParseArray(t *testing.T) {
-	tokens := Lex("[1, 2, 3, 4]")
+	tokens := LexString(t, "[1, 2, 3, 4]")
 	if tokens.Join(";") != "[;1;,;2;,;3;,;4;]" {
 		t.Fatal("oh no", tokens.Join(";"))
 	}
@@ -118,7 +126,7 @@ func TestParseArray(t *testing.T) {
 }
 
 func TestParseFloatArray(t *testing.T) {
-	tokens := Lex("[1.1, 2.2, 3.3, 4.4]")
+	tokens := LexString(t, "[1.1, 2.2, 3.3, 4.4]")
 	if tokens.Join(";") != "[;1.1;,;2.2;,;3.3;,;4.4;]" {
 		t.Fatal("oh no", tokens.Join(";"))
 	}
@@ -138,7 +146,7 @@ func TestParseFloatArray(t *testing.T) {
 }
 
 func TestParseMultiArray(t *testing.T) {
-	tokens := Lex(`[
+	tokens := LexString(t, `[
 	[1, 2, 3],
 	[4, 5, 6]
 ]`)
@@ -165,7 +173,7 @@ func TestParseMultiArray(t *testing.T) {
 }
 
 func TestParseMultiStringArray(t *testing.T) {
-	tokens := Lex(`[
+	tokens := LexString(t, `[
 	["1", "2", "3"],
 	["4", "5", "6"]
 ]`)
@@ -192,7 +200,7 @@ func TestParseMultiStringArray(t *testing.T) {
 }
 
 func TestParseObjectArray(t *testing.T) {
-	tokens := Lex(`[
+	tokens := LexString(t, `[
 	{
 		"name": "lasse"
 	},
@@ -219,7 +227,7 @@ func TestParseObjectArray(t *testing.T) {
 }
 
 func TestMapStringIntUnmarshal(t *testing.T) {
-	tokens := Lex(`{"number": 1, "lumber": 13}`)
+	tokens := LexString(t, `{"number": 1, "lumber": 13}`)
 	var m map[string]int
 	if err := Parse(tokens, &m); err != nil {
 		t.Fatal(err)
@@ -234,7 +242,7 @@ func TestMapStringIntUnmarshal(t *testing.T) {
 }
 
 func TestMapStringStringUnmarshal(t *testing.T) {
-	tokens := Lex(`{"number": "1", "lumber": "13"}`)
+	tokens := LexString(t, `{"number": "1", "lumber": "13"}`)
 	var m map[string]string
 	if err := Parse(tokens, &m); err != nil {
 		t.Fatal(err)
@@ -262,63 +270,63 @@ func TestParseAsReflectValue(t *testing.T) {
 	}{
 		{name: "string", check: func() bool {
 			var v string
-			testParse(t, Lex(`"lasse"`), &v)
+			testParse(t, LexString(t, `"lasse"`), &v)
 			return v == "lasse"
 		}},
 		{name: "int64", check: func() bool {
 			var v int64
-			testParse(t, Lex(`234`), &v)
+			testParse(t, LexString(t, `234`), &v)
 			return v == 234
 		}},
 		{name: "int32", check: func() bool {
 			var v int32
-			testParse(t, Lex(`234`), &v)
+			testParse(t, LexString(t, `234`), &v)
 			return v == 234
 		}},
 		{name: "int", check: func() bool {
 			var v int
-			testParse(t, Lex(`234`), &v)
+			testParse(t, LexString(t, `234`), &v)
 			return v == 234
 		}},
 		{name: "float64", check: func() bool {
 			var v float64
-			testParse(t, Lex(`42.2`), &v)
+			testParse(t, LexString(t, `42.2`), &v)
 			return v == 42.2
 		}},
 		{name: "float32", check: func() bool {
 			var v float32
-			testParse(t, Lex(`42.2`), &v)
+			testParse(t, LexString(t, `42.2`), &v)
 			return v == 42.2
 		}},
 		{name: "test_object", check: func() bool {
 			var v TestObject
-			testParse(t, Lex(`{"name": "lasse"}`), &v)
+			testParse(t, LexString(t, `{"name": "lasse"}`), &v)
 			return v.Name == "lasse"
 		}},
 		{name: "array", check: func() bool {
 			var v []string
-			testParse(t, Lex(`["name", "lasse"]`), &v)
+			testParse(t, LexString(t, `["name", "lasse"]`), &v)
 			return v[1] == "lasse"
 		}},
 		{name: "array", check: func() bool {
 			var v interface{}
-			testParse(t, Lex(`"lasse"`), &v)
+			testParse(t, LexString(t, `"lasse"`), &v)
 			return v.(string) == "lasse"
 		}},
 		{name: "array", check: func() bool {
 			var v interface{}
-			testParse(t, Lex(`{"name": "lasse"}`), &v)
+			testParse(t, LexString(t, `{"name": "lasse"}`), &v)
 			return v.(map[string]interface{})["name"] == "lasse"
 		}},
 		{name: "interface_array", check: func() bool {
 			var v []interface{}
-			testParse(t, Lex(`["name", "lasse"]`), &v)
+			testParse(t, LexString(t, `["name", "lasse"]`), &v)
 			return v != nil &&
 				v[0].(string) == "name"
 		}},
 		{name: "ding_object", check: func() bool {
 			var ding Ding
-			testParse(t, Lex(sample), &ding)
+			testParse(t, LexString(t, sample), &ding)
 			return ding.Ding == 1 &&
 				ding.Dong == "hello" &&
 				ding.Boolean == true &&
@@ -342,7 +350,7 @@ func TestParseAsReflectValue(t *testing.T) {
 }
 
 func TestParsePointer(t *testing.T) {
-	tokens := Lex(`{
+	tokens := LexString(t, `{
 		"object": {
 			"name": "lasse"
 		},
@@ -359,7 +367,7 @@ func TestParsePointer(t *testing.T) {
 }
 
 func TestParseInterfaceString(t *testing.T) {
-	tokens := Lex(`"lasse"`)
+	tokens := LexString(t, `"lasse"`)
 
 	var ding interface{}
 	if err := Parse(tokens, &ding); err != nil {
@@ -372,7 +380,7 @@ func TestParseInterfaceString(t *testing.T) {
 }
 
 func TestMapFollowedBy(t *testing.T) {
-	tokens := Lex(`{
+	tokens := LexString(t, `{
 	"map_object": {
 		"number": 1,
 			"lumber": 13
@@ -396,12 +404,30 @@ func TestRequiredFields(t *testing.T) {
 	}
 
 	var r RequiredBoi
-	if err := Parse(Lex(`{}`), &r); !IsRequiredErr(err) {
+	if err := Parse(LexString(t, `{}`), &r); !IsRequiredErr(err) {
 		t.Fatal("no required error, or unexpected error returned:", err)
 	}
 
-	if err := Parse(Lex(`{"name": "lasse"}`), &r); err != nil {
+	if err := Parse(LexString(t, `{"name": "lasse"}`), &r); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestNullSupport(t *testing.T) {
+	var d Ding
+	if err := Parse(LexString(t, `{"object": null}`), &d); err != nil {
+		t.Fatal(err)
+	}
+	if d.Object != nil {
+		t.Fatal("object not nil")
+	}
+
+	var to TestObject
+	if err := Parse(LexString(t, `{"name": null}`), &to); err != nil {
+		t.Fatal(err)
+	}
+	if to.Name != "" {
+		t.Fatal("name not nothing:", to.Name)
 	}
 }
 

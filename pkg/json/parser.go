@@ -57,6 +57,8 @@ func (p *parser) parse(vo reflect.Value) (reflect.Value, error) {
 			return p.parseArray(determineArrayType(vo))
 		case OpenCurlyToken:
 			return p.parseObject(vo)
+		case NullToken:
+			return vo, nil
 		default:
 			return p.current().AsValue(vo.Type())
 		}
@@ -161,7 +163,7 @@ func (p *parser) parsePointerObject(vo reflect.Value) (int, error) {
 	ptr := getValueOfPointer(vo)
 	index, err := p.copy().parseStructure(getElemOfValue(ptr))
 	if err != nil {
-		panic(err)
+		return index, err
 	}
 	vo.Set(ptr)
 	return index, err
@@ -181,7 +183,7 @@ func (p *parser) parseStructure(vo reflect.Value) (int, error) {
 			obj := vo.Field(tag.FieldIndex)
 			val, err := p.parse(obj)
 			if err != nil {
-				panic(err)
+				return p.index, err
 			}
 			tags.Set(tag)
 			obj.Set(val)
