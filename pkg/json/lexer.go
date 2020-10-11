@@ -2,7 +2,11 @@ package json
 
 import "errors"
 
-func Lex(input string) Tokens {
+var (
+	errInvalidJSONString = errors.New("invalid JSON string")
+)
+
+func Lex(input string) (Tokens, error) {
 	l := &lexer{
 		input: input,
 		index: -1,
@@ -15,13 +19,13 @@ func Lex(input string) Tokens {
 		case Quotation:
 			token, err := l.readString()
 			if err != nil {
-				panic(err)
+				return Tokens{}, errInvalidJSONString
 			}
 			l.output = append(l.output, token)
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 			token, err := l.readNumber()
 			if err != nil {
-				panic(err)
+				return Tokens{}, errInvalidJSONString
 			}
 			l.output = append(l.output, token)
 			l.index--
@@ -38,7 +42,7 @@ func Lex(input string) Tokens {
 			l.output = append(l.output, NewToken(l.value()))
 		}
 	}
-	return l.output
+	return l.output, nil
 }
 
 type lexer struct {
