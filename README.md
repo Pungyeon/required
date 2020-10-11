@@ -29,3 +29,5 @@ func main() {
     fmt.Println(user)
 }
 ```
+
+Refer to samples for a more detailed example of this.
