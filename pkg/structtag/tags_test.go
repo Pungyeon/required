@@ -1,4 +1,4 @@
-package json
+package structtag
 
 import (
 	"reflect"

@@ -4,18 +4,14 @@ import (
 	"errors"
 	"reflect"
 
+	"github.com/Pungyeon/json-validation/pkg/token"
+
+	"github.com/Pungyeon/json-validation/pkg/structtag"
+
 	"github.com/Pungyeon/json-validation/pkg/required"
 )
 
-var (
-	reflectTypeString    = reflect.TypeOf("")
-	reflectTypeInteger   = reflect.TypeOf(1)
-	reflectTypeFloat     = reflect.TypeOf(3.2)
-	reflectTypeInterface = reflect.ValueOf(map[string]interface{}{}).Type().Elem()
-	reflectTypeBool      = reflect.TypeOf(true)
-)
-
-func Parse(tokens Tokens, v interface{}) error {
+func Parse(tokens token.Tokens, v interface{}) error {
 	vo := getReflectValue(v)
 	p := &parser{
 		index:  -1,
@@ -30,16 +26,16 @@ func Parse(tokens Tokens, v interface{}) error {
 }
 
 type parser struct {
-	tokens Tokens
+	tokens token.Tokens
 	index  int
 	obj    reflect.Value
 }
 
-func (p *parser) previous() Token {
+func (p *parser) previous() token.Token {
 	return p.tokens[p.index-1]
 }
 
-func (p *parser) current() Token {
+func (p *parser) current() token.Token {
 	return p.tokens[p.index]
 }
 
@@ -55,17 +51,17 @@ func (p *parser) next() bool {
 func (p *parser) parse(vo reflect.Value) (reflect.Value, error) {
 	for p.next() {
 		switch p.current().Type {
-		case OpenBraceToken:
+		case token.OpenBrace:
 			return p.parseArray(determineArrayType(vo))
-		case OpenCurlyToken:
+		case token.OpenCurly:
 			return p.parseObject(vo)
-		case NullToken:
+		case token.Null:
 			return vo, nil
 		default:
 			return p.current().AsValue(vo.Type())
 		}
 	}
-	return reflect.New(reflectTypeString), nil // shouldn't this be an error?
+	return reflect.New(token.ReflectTypeString), nil // shouldn't this be an error?
 }
 
 func (p *parser) parseObject(vo reflect.Value) (reflect.Value, error) {
@@ -87,7 +83,7 @@ func (p *parser) parseStructureWithCopy(vo reflect.Value) (reflect.Value, error)
 
 func determineObjectType(vo reflect.Value) (reflect.Kind, reflect.Type) {
 	if vo.Kind() == reflect.Interface {
-		return reflect.Map, reflectTypeInterface
+		return reflect.Map, token.ReflectTypeInterface
 	} else if vo.Kind() == reflect.Map {
 		return reflect.Map, vo.Type().Elem()
 	} else {
@@ -106,11 +102,11 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 	var slice []reflect.Value
 	for p.next() {
 		switch p.current().Type {
-		case CommaToken:
+		case token.Comma:
 			continue // skip commas
-		case ClosingBraceToken:
+		case token.ClosingBrace:
 			return p.setArray(sliceType, slice)
-		case OpenCurlyToken:
+		case token.OpenCurly:
 			obj := reflect.New(sliceType.Elem()).Elem()
 			index, err := p.copy().parseStructure(obj)
 			if err != nil {
@@ -118,10 +114,10 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 			}
 			p.index = index
 			slice = append(slice, obj)
-			if p.current().Type == ClosingBraceToken {
+			if p.current().Type == token.ClosingBrace {
 				return p.setArray(sliceType, slice)
 			}
-		case OpenBraceToken:
+		case token.OpenBrace:
 			inner, err := p.parseArray(sliceType.Elem())
 			if err != nil {
 				return inner, err
@@ -172,7 +168,7 @@ func (p *parser) parsePointerObject(vo reflect.Value) (int, error) {
 }
 
 func (p *parser) parseStructure(vo reflect.Value) (int, error) {
-	tags, err := getFieldTags(vo)
+	tags, err := structtag.FromValue(vo)
 	if err != nil {
 		return -1, err
 	}
@@ -195,7 +191,7 @@ func (p *parser) parseStructure(vo reflect.Value) (int, error) {
 				}
 			}
 		}
-		if p.eof() || p.current().Type == ClosingCurlyToken {
+		if p.eof() || p.current().Type == token.ClosingCurly {
 			p.next()
 			return p.index, tags.CheckRequired()
 		}
@@ -215,9 +211,9 @@ func getElemOfValue(vo reflect.Value) reflect.Value {
 }
 
 func (p *parser) parseMap(valueType reflect.Type) (reflect.Value, error) {
-	vmap := reflect.MakeMap(reflect.MapOf(reflectTypeString, valueType))
+	vmap := reflect.MakeMap(reflect.MapOf(token.ReflectTypeString, valueType))
 	for p.next() {
-		if p.current().Type == ClosingCurlyToken {
+		if p.current().Type == token.ClosingCurly {
 			p.next()
 			break
 		}
@@ -236,11 +232,11 @@ func (p *parser) parseMap(valueType reflect.Type) (reflect.Value, error) {
 
 func (p *parser) parseField() (reflect.Value, error) {
 	for p.next() {
-		if p.current().Type == ColonToken {
-			val := reflect.New(reflectTypeString).Elem()
+		if p.current().Type == token.Colon {
+			val := reflect.New(token.ReflectTypeString).Elem()
 			val.SetString(p.previous().Value)
 			return val, nil
 		}
 	}
-	return reflect.New(reflectTypeString).Elem(), errors.New("could not parse field")
+	return reflect.New(token.ReflectTypeString).Elem(), errors.New("could not parse field")
 }

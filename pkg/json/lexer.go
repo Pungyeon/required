@@ -1,12 +1,16 @@
 package json
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/Pungyeon/json-validation/pkg/token"
+)
 
 var (
 	errInvalidJSONString = errors.New("invalid JSON string")
 )
 
-func Lex(input string) (Tokens, error) {
+func Lex(input string) (token.Tokens, error) {
 	l := &lexer{
 		input: input,
 		index: -1,
@@ -14,32 +18,32 @@ func Lex(input string) (Tokens, error) {
 
 	for l.next() {
 		switch l.value() {
-		case Space, Tab, NewLine:
+		case token.Space, token.Tab, token.NewLine:
 			continue
-		case Quotation:
-			token, err := l.readString()
+		case token.Quotation:
+			t, err := l.readString()
 			if err != nil {
-				return Tokens{}, errInvalidJSONString
+				return token.Tokens{}, errInvalidJSONString
 			}
-			l.output = append(l.output, token)
+			l.output = append(l.output, t)
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-			token, err := l.readNumber()
+			t, err := l.readNumber()
 			if err != nil {
-				return Tokens{}, errInvalidJSONString
+				return token.Tokens{}, errInvalidJSONString
 			}
-			l.output = append(l.output, token)
+			l.output = append(l.output, t)
 			l.index--
 		case 't':
-			l.output = append(l.output, Token{"true", BooleanToken})
+			l.output = append(l.output, token.Token{Value: "true", Type: token.Boolean})
 			l.index += len("rue")
 		case 'f':
-			l.output = append(l.output, Token{"false", BooleanToken})
+			l.output = append(l.output, token.Token{Value: "false", Type: token.Boolean})
 			l.index += len("alse")
 		case 'n':
-			l.output = append(l.output, Token{"null", NullToken})
+			l.output = append(l.output, token.Token{Value: "null", Type: token.Null})
 			l.index += len("ull")
 		default:
-			l.output = append(l.output, NewToken(l.value()))
+			l.output = append(l.output, token.NewToken(l.value()))
 		}
 	}
 	return l.output, nil
@@ -48,7 +52,7 @@ func Lex(input string) (Tokens, error) {
 type lexer struct {
 	index  int
 	input  string
-	output []Token
+	output []token.Token
 }
 
 func (l *lexer) next() bool {
@@ -60,39 +64,39 @@ func (l *lexer) value() byte {
 	return l.input[l.index]
 }
 
-func (l *lexer) readNumber() (Token, error) {
-	tokenType := IntegerToken
+func (l *lexer) readNumber() (token.Token, error) {
+	tokenType := token.Integer
 	buf := []byte{l.value()}
 	for l.next() {
 		switch l.value() {
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 			buf = append(buf, l.value())
 		case '.':
-			tokenType = FloatToken
+			tokenType = token.Float
 			buf = append(buf, l.value())
 		default:
-			return Token{
+			return token.Token{
 				Value: string(buf),
 				Type:  tokenType,
 			}, nil
 		}
 	}
-	return Token{
+	return token.Token{
 		Value: string(buf),
 		Type:  tokenType,
 	}, nil
 }
 
-func (l *lexer) readString() (Token, error) {
+func (l *lexer) readString() (token.Token, error) {
 	var buf []byte
 	for l.next() {
-		if l.value() == Quotation {
-			return Token{
+		if l.value() == token.Quotation {
+			return token.Token{
 				Value: string(buf),
-				Type:  StringToken,
+				Type:  token.String,
 			}, nil
 		}
 		buf = append(buf, l.value())
 	}
-	return Token{}, errors.New("unexpected end of file, trying to read string")
+	return token.Token{}, errors.New("unexpected end of file, trying to read string")
 }
