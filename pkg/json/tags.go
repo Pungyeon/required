@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 )
 
 var (
@@ -28,6 +27,47 @@ func (err requiredErr) Error() string {
 var _ error = &requiredErr{}
 
 type Tags map[string]Tag
+
+func NewTagFromString(input string, index int) (Tag, error) {
+	tag := Tag{
+		FieldIndex: index,
+	}
+	var previous int
+	current := indexOfNextTag(input, 0)
+	for current < len(input) {
+		if input[current] == ',' {
+			if err := addTagValue(input[previous:current], &tag); err != nil {
+				return tag, err
+			}
+			current = indexOfNextTag(input, current)
+			previous = current
+		}
+		current++
+	}
+	if previous != current {
+		return tag, addTagValue(input[previous:current], &tag)
+	}
+	return tag, nil
+}
+
+func indexOfNextTag(input string, current int) int {
+	for input[current] == ' ' ||
+		input[current] == '\n' ||
+		input[current] == '\t' ||
+		input[current] == ',' ||
+		input[current] == '\r' {
+		current++
+	}
+	return current
+}
+
+func addTagValue(value string, tag *Tag) error {
+	if tag.FieldName == "" {
+		tag.FieldName = value
+		return nil
+	}
+	return tag.AddTagValue(value)
+}
 
 func (tags Tags) Set(tag Tag) {
 	tag.IsSet = true
@@ -61,7 +101,7 @@ func (t *Tag) AddTagValue(value string) error {
 	case "omitifempty":
 		t.OmitIfEmpty = true
 	default:
-		return fmt.Errorf("illegal tag value: %s", value)
+		return fmt.Errorf("illegal tag value: `%s`", value)
 	}
 	return nil
 }
@@ -80,15 +120,9 @@ func getFieldTags(vo reflect.Value) (Tags, error) {
 				FieldName:  f.Name,
 			}
 		} else {
-			tagValues := strings.Split(jsonTag, ",")
-			tag := Tag{
-				FieldIndex: i,
-				FieldName:  tagValues[0],
-			}
-			for i := 1; i < len(tagValues); i++ {
-				if err := tag.AddTagValue(tagValues[i]); err != nil {
-					return nil, err
-				}
+			tag, err := NewTagFromString(jsonTag, i)
+			if err != nil {
+				return nil, err
 			}
 			tags[tag.FieldName] = tag
 		}

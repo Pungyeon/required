@@ -2,6 +2,7 @@ package json
 
 import (
 	"encoding/json"
+	"regexp"
 	"testing"
 )
 
@@ -398,9 +399,25 @@ func TestMapFollowedBy(t *testing.T) {
 	}
 }
 
+type CustomRequiredEmail string
+
+func (email CustomRequiredEmail) IsValueValid() error {
+	matched, err := regexp.MatchString(`.+@.+\..+`, string(email))
+	if err != nil {
+		return err
+	}
+	if !matched {
+		return requiredErr{
+			err:   errRequiredField,
+			field: "email",
+		}
+	}
+	return nil
+}
+
 func TestRequiredFields(t *testing.T) {
 	type RequiredBoi struct {
-		Name string `json:"name,required"`
+		Name string `json:"name, required"`
 	}
 
 	var r RequiredBoi
@@ -410,6 +427,19 @@ func TestRequiredFields(t *testing.T) {
 
 	if err := Parse(LexString(t, `{"name": "lasse"}`), &r); err != nil {
 		t.Fatal(err)
+	}
+	type TestUser struct {
+		Email CustomRequiredEmail
+	}
+
+	var invalidEmail TestUser
+	if err := Parse(LexString(t, `{"email": "dingeling.dk"`), &invalidEmail); !IsRequiredErr(err) {
+		t.Fatal("no required error, or unexpected error returned:", err)
+	}
+
+	var validEmail TestUser
+	if err := Parse(LexString(t, `{"email": "lasse@jakobsen.dev"`), &validEmail); err != nil {
+		t.Fatal("no required error, or unexpected error returned:", err)
 	}
 }
 

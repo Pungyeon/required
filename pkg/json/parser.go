@@ -3,6 +3,8 @@ package json
 import (
 	"errors"
 	"reflect"
+
+	"github.com/Pungyeon/json-validation/pkg/required"
 )
 
 var (
@@ -185,8 +187,13 @@ func (p *parser) parseStructure(vo reflect.Value) (int, error) {
 			if err != nil {
 				return p.index, err
 			}
-			tags.Set(tag)
+			tags.Set(tag) // TODO : Make sure to not set this, if the token is a NullToken
 			obj.Set(val)
+			if req, ok := obj.Interface().(required.Required); ok {
+				if err := req.IsValueValid(); err != nil {
+					return p.index, err
+				}
+			}
 		}
 		if p.eof() || p.current().Type == ClosingCurlyToken {
 			p.next()
