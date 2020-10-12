@@ -1,6 +1,9 @@
 package main
 
 import (
+	"errors"
+	"regexp"
+
 	"github.com/Pungyeon/json-validation/pkg/json"
 )
 
@@ -8,6 +11,7 @@ type Customer struct {
 	ID      int32    `json:"id"`
 	Name    string   `json:"name,required"`
 	Address Address  `json:"address"`
+	Email   Email    `json:"email,required"`
 	Tags    []string `json:"tags,required"`
 }
 
@@ -16,6 +20,19 @@ type Address struct {
 	StreetAddress2 string `json:"street_address_2"`
 	Country        string `json:"country,required"`
 	PostalCode     int    `json:"postal_code,required"`
+}
+
+type Email string
+
+func (email Email) IsValueValid() error {
+	matched, err := regexp.MatchString(`.+@.+\..+`, string(email))
+	if err != nil {
+		return err
+	}
+	if !matched {
+		return errors.New("invalid email")
+	}
+	return nil
 }
 
 func main() {
@@ -28,6 +45,7 @@ func main() {
 			"country": "Dingeling",
 			"postal_code": 91210
 		},
+		"email": "ding@dingeling.dk"
 		"tags": ["big boi", "customer"]
 
 	}`)
