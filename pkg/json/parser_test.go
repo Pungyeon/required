@@ -2,8 +2,15 @@ package json
 
 import (
 	"encoding/json"
+	"errors"
 	"regexp"
 	"testing"
+
+	"github.com/Pungyeon/json-validation/pkg/lexer"
+
+	"github.com/Pungyeon/json-validation/pkg/token"
+
+	"github.com/Pungyeon/json-validation/pkg/structtag"
 )
 
 type TestObject struct {
@@ -47,23 +54,12 @@ var sample = `{
 		"float": 3.2
 	}`
 
-func LexString(t *testing.T, input string) Tokens {
-	tokens, err := Lex(input)
+func LexString(t *testing.T, input string) token.Tokens {
+	tokens, err := lexer.Lex(input)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return tokens
-}
-
-func TestLexer(t *testing.T) {
-	tokens := LexString(t, `{"foo": [1, 2, {"bar": 2}, true]}`)
-
-	result := tokens.Join(";")
-	expected := "{;foo;:;[;1;,;2;,;{;bar;:;2;};,;true;];}"
-
-	if result != expected {
-		t.Fatalf("%v != %v", result, expected)
-	}
 }
 
 func TestParserSimple(t *testing.T) {
@@ -257,7 +253,7 @@ func TestMapStringStringUnmarshal(t *testing.T) {
 	}
 }
 
-func testParse(t *testing.T, tokens Tokens, v interface{}) {
+func testParse(t *testing.T, tokens token.Tokens, v interface{}) {
 	if err := Parse(tokens, v); err != nil {
 		t.Fatal(err)
 	}
@@ -401,16 +397,15 @@ func TestMapFollowedBy(t *testing.T) {
 
 type CustomRequiredEmail string
 
+var errEmailRequired = errors.New("email field required")
+
 func (email CustomRequiredEmail) IsValueValid() error {
 	matched, err := regexp.MatchString(`.+@.+\..+`, string(email))
 	if err != nil {
 		return err
 	}
 	if !matched {
-		return requiredErr{
-			err:   errRequiredField,
-			field: "email",
-		}
+		return errEmailRequired
 	}
 	return nil
 }
@@ -421,7 +416,7 @@ func TestRequiredFields(t *testing.T) {
 	}
 
 	var r RequiredBoi
-	if err := Parse(LexString(t, `{}`), &r); !IsRequiredErr(err) {
+	if err := Parse(LexString(t, `{}`), &r); !structtag.IsRequiredErr(err) {
 		t.Fatal("no required error, or unexpected error returned:", err)
 	}
 
@@ -433,7 +428,7 @@ func TestRequiredFields(t *testing.T) {
 	}
 
 	var invalidEmail TestUser
-	if err := Parse(LexString(t, `{"email": "dingeling.dk"`), &invalidEmail); !IsRequiredErr(err) {
+	if err := Parse(LexString(t, `{"email": "dingeling.dk"`), &invalidEmail); err != errEmailRequired {
 		t.Fatal("no required error, or unexpected error returned:", err)
 	}
 

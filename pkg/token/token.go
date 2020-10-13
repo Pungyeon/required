@@ -1,4 +1,4 @@
-package json
+package token
 
 import (
 	"bytes"
@@ -14,51 +14,59 @@ var (
 	Quotation byte = '"'
 )
 
+var (
+	ReflectTypeString    = reflect.TypeOf("")
+	ReflectTypeInteger   = reflect.TypeOf(1)
+	ReflectTypeFloat     = reflect.TypeOf(3.2)
+	ReflectTypeInterface = reflect.ValueOf(map[string]interface{}{}).Type().Elem()
+	ReflectTypeBool      = reflect.TypeOf(true)
+)
+
 type TokenType string
 
 func (t TokenType) IsEnding() bool {
-	return t == ClosingBraceToken || t == ClosingCurlyToken ||
-		t == ClosingBracketToken
+	return t == ClosingBrace || t == ClosingCurly ||
+		t == ClosingBracket
 }
 
 const (
-	UnknownToken        TokenType = "UNKNOWN"
-	IntegerToken        TokenType = "INTEGER"
-	FloatToken          TokenType = "FLOAT"
-	StringToken         TokenType = "STRING"
-	NullToken           TokenType = "NULL"
-	KeyToken            TokenType = "KEY_TOKEN"
-	ColonToken          TokenType = ":"
-	CommaToken          TokenType = ","
-	WhiteSpaceToken     TokenType = "WHITESPACE"
-	OpenBraceToken      TokenType = "["
-	ClosingBraceToken   TokenType = "]"
-	OpenBracketToken    TokenType = "("
-	ClosingBracketToken TokenType = ")"
-	OpenCurlyToken      TokenType = "{"
-	ClosingCurlyToken   TokenType = "}"
-	FullStopToken       TokenType = "."
-	BooleanToken        TokenType = "BOOLEAN"
+	Unknown        TokenType = "UNKNOWN"
+	Integer        TokenType = "INTEGER"
+	Float          TokenType = "FLOAT"
+	String         TokenType = "STRING"
+	Null           TokenType = "NULL"
+	Key            TokenType = "KEY_TOKEN"
+	Colon          TokenType = ":"
+	Comma          TokenType = ","
+	WhiteSpace     TokenType = "WHITESPACE"
+	OpenBrace      TokenType = "["
+	ClosingBrace   TokenType = "]"
+	OpenBracket    TokenType = "("
+	ClosingBracket TokenType = ")"
+	OpenCurly      TokenType = "{"
+	ClosingCurly   TokenType = "}"
+	FullStop       TokenType = "."
+	Boolean        TokenType = "BOOLEAN"
 )
 
 var TokenTypes = map[string]TokenType{
-	"UNKNOWN":    UnknownToken,
-	"BOOLEAN":    BooleanToken,
-	"INTEGER":    IntegerToken,
-	"FLOAT":      FloatToken,
-	"STRING":     StringToken,
-	"NULL":       NullToken,
-	"KEY_TOKEN":  KeyToken,
-	":":          ColonToken,
-	",":          CommaToken,
-	"WHITESPACE": WhiteSpaceToken,
-	"[":          OpenBraceToken,
-	"]":          ClosingBraceToken,
-	"(":          OpenBracketToken,
-	")":          ClosingBracketToken,
-	"{":          OpenCurlyToken,
-	"}":          ClosingCurlyToken,
-	".":          FullStopToken,
+	"UNKNOWN":    Unknown,
+	"BOOLEAN":    Boolean,
+	"INTEGER":    Integer,
+	"FLOAT":      Float,
+	"STRING":     String,
+	"NULL":       Null,
+	"KEY_TOKEN":  Key,
+	":":          Colon,
+	",":          Comma,
+	"WHITESPACE": WhiteSpace,
+	"[":          OpenBrace,
+	"]":          ClosingBrace,
+	"(":          OpenBracket,
+	")":          ClosingBracket,
+	"{":          OpenCurly,
+	"}":          ClosingCurly,
+	".":          FullStop,
 }
 
 type Token struct {
@@ -71,7 +79,7 @@ func NewToken(b byte) Token {
 	if !ok {
 		return Token{
 			Value: string(b),
-			Type:  UnknownToken,
+			Type:  Unknown,
 		}
 	}
 	return Token{
@@ -81,30 +89,30 @@ func NewToken(b byte) Token {
 }
 
 func (token Token) AsValue(vt reflect.Type) (reflect.Value, error) {
-	if vt == reflectTypeInterface || vt == nil {
+	if vt == ReflectTypeInterface || vt == nil {
 		return token.ToValue()
 	}
 
 	val := reflect.New(vt).Elem()
 	switch token.Type {
-	case StringToken:
+	case String:
 		val.SetString(token.Value)
 		return val, nil
-	case IntegerToken:
+	case Integer:
 		n, err := strconv.ParseInt(token.Value, 10, 64)
 		if err != nil {
 			return val, err
 		}
 		val.SetInt(n)
 		return val, err
-	case FloatToken:
+	case Float:
 		f, err := strconv.ParseFloat(token.Value, 64)
 		if err != nil {
 			return val, err
 		}
 		val.SetFloat(f)
 		return val, err
-	case BooleanToken:
+	case Boolean:
 		if token.Value[0] == 't' {
 			val.SetBool(true)
 		} else {
@@ -118,28 +126,28 @@ func (token Token) AsValue(vt reflect.Type) (reflect.Value, error) {
 
 func (token Token) ToValue() (reflect.Value, error) {
 	switch token.Type {
-	case StringToken:
-		val := reflect.New(reflectTypeString).Elem()
+	case String:
+		val := reflect.New(ReflectTypeString).Elem()
 		val.SetString(token.Value)
 		return val, nil
-	case IntegerToken:
-		val := reflect.New(reflectTypeInteger).Elem()
+	case Integer:
+		val := reflect.New(ReflectTypeInteger).Elem()
 		n, err := strconv.ParseInt(token.Value, 10, 64)
 		if err != nil {
 			return val, err
 		}
 		val.SetInt(n)
 		return val, err
-	case FloatToken:
-		val := reflect.New(reflectTypeFloat).Elem()
+	case Float:
+		val := reflect.New(ReflectTypeFloat).Elem()
 		f, err := strconv.ParseFloat(token.Value, 64)
 		if err != nil {
 			return val, err
 		}
 		val.SetFloat(f)
 		return val, err
-	case BooleanToken:
-		val := reflect.New(reflectTypeBool).Elem()
+	case Boolean:
+		val := reflect.New(ReflectTypeBool).Elem()
 		if token.Value[0] == 't' {
 			val.SetBool(true)
 		} else {
