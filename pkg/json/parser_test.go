@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/Pungyeon/json-validation/pkg/lexer"
+
 	"github.com/Pungyeon/json-validation/pkg/token"
 
 	"github.com/Pungyeon/json-validation/pkg/structtag"
@@ -53,22 +55,11 @@ var sample = `{
 	}`
 
 func LexString(t *testing.T, input string) token.Tokens {
-	tokens, err := Lex(input)
+	tokens, err := lexer.Lex(input)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return tokens
-}
-
-func TestLexer(t *testing.T) {
-	tokens := LexString(t, `{"foo": [1, 2, {"bar": 2}, true]}`)
-
-	result := tokens.Join(";")
-	expected := "{;foo;:;[;1;,;2;,;{;bar;:;2;};,;true;];}"
-
-	if result != expected {
-		t.Fatalf("%v != %v", result, expected)
-	}
 }
 
 func TestParserSimple(t *testing.T) {

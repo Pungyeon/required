@@ -17,7 +17,7 @@ func TestTagFormatting(t *testing.T) {
 		DingDong: "ding_dong",
 		Age:      30,
 	})
-	tags, err := getFieldTags(v)
+	tags, err := FromValue(v)
 	if err != nil {
 		t.Fatal(err)
 	}

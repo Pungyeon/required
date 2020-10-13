@@ -9,7 +9,6 @@ func (tags Tags) Set(tag Tag) {
 	tags[tag.FieldName] = tag
 }
 
-// TODO : Move this to a different package ?
 func (tags Tags) CheckRequired() error {
 	for _, tag := range tags {
 		if tag.Required && !tag.IsSet {
