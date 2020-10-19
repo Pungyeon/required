@@ -15,13 +15,13 @@ If this is not the case, please make sure to report this as an issue here on Git
 The usage is very simple. Adding the `JSON` struct tag "required", will have the parser enforce this field to be present, when unmarshalling:
 
 ```go
-	type User struct {
-		FirstName string `json:"first_name,required"`
-		LastName  string `json:"last_name,required"`
-		Email     string `json:"email,required"`
-    GitHub    string `json:"github"`
-		LinkedIn  string
-	}
+type User struct {
+  FirstName string `json:"first_name,required"`
+  LastName  string `json:"last_name,required"`
+  Email     string `json:"email,required"`
+  GitHub    string `json:"github"`
+  LinkedIn  string
+}
 ``` 
 
 In the above example, `FirstName`, `LastName` and `Email` are required, where as `GitHub` and `LinkedIn` are not.
