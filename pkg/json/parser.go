@@ -4,11 +4,9 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/Pungyeon/json-validation/pkg/token"
-
-	"github.com/Pungyeon/json-validation/pkg/structtag"
-
-	"github.com/Pungyeon/json-validation/pkg/required"
+	"github.com/Pungyeon/required/pkg/required"
+	"github.com/Pungyeon/required/pkg/structtag"
+	"github.com/Pungyeon/required/pkg/token"
 )
 
 func Parse(tokens token.Tokens, v interface{}) error {
