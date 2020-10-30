@@ -6,15 +6,15 @@ import (
 )
 
 type Embedded struct {
-	Bool         `json:"bool"`
-	String       `json:"string"`
-	Int          `json:"int"`
-	Float        `json:"float64"`
-	IntSlice     `json:"int_slice"`
-	ByteSlice    `json:"byte_slice"`
-	BoolSlice    `json:"bool_slice"`
-	FloatSlice   `json:"float64_slice"`
-	StringSlice  `json:"string_slice"`
+	Bool        `json:"bool"`
+	String      `json:"string"`
+	Int         `json:"int"`
+	Float       `json:"float64"`
+	IntSlice    `json:"int_slice"`
+	ByteSlice   `json:"byte_slice"`
+	BoolSlice   `json:"bool_slice"`
+	FloatSlice  `json:"float64_slice"`
+	StringSlice `json:"string_slice"`
 }
 
 func TestEmbedded(t *testing.T) {

@@ -47,7 +47,6 @@ func TestIntValidation(t *testing.T) {
 			err := Unmarshal(jsonb, &customer)
 			assertError(t, err, tf.err)
 
-
 			if !tf.assert(customer) {
 				t.Fatalf("Assertion Failed: %+v", customer)
 			}
