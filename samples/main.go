@@ -4,7 +4,7 @@ import (
 	"errors"
 	"regexp"
 
-	"github.com/Pungyeon/require/pkg/json"
+	"github.com/Pungyeon/required/pkg/json"
 )
 
 type Customer struct {
