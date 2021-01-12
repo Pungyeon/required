@@ -31,12 +31,10 @@ type parser struct {
 
 func (p *parser) previous() token.Token {
 	return p.lexer.Previous()
-	//return p.tokens[p.index-1]
 }
 
 func (p *parser) current() token.Token {
 	return p.lexer.Current()
-	//return p.tokens[p.index]
 }
 
 func (p *parser) eof() bool {
@@ -68,16 +66,8 @@ func (p *parser) parseObject(vo reflect.Value) (reflect.Value, error) {
 	if kind == reflect.Map {
 		return p.parseMap(_type)
 	}
-	return p.parseStructureWithCopy(vo)
-}
-
-func (p *parser) parseStructureWithCopy(vo reflect.Value) (reflect.Value, error) {
-	_, err := p.copy().parseStructure(vo)
-	if err != nil {
-		return vo, err
-	}
-	//p.index = index
-	return vo, nil
+	_, err := p.parseStructure(vo)
+	return vo, err
 }
 
 func determineObjectType(vo reflect.Value) (reflect.Kind, reflect.Type) {
@@ -107,11 +97,10 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 			return p.setArray(sliceType, slice)
 		case token.OpenCurly:
 			obj := reflect.New(sliceType.Elem()).Elem()
-			_, err := p.copy().parseStructure(obj)
+			_, err := p.parseStructure(obj)
 			if err != nil {
 				return obj, nil
 			}
-			//p.index = index
 			slice = append(slice, obj)
 			if p.current().Type == token.ClosingBrace {
 				return p.setArray(sliceType, slice)
@@ -142,14 +131,6 @@ func (p *parser) setArray(sliceType reflect.Type, slice []reflect.Value) (reflec
 	return arr, nil
 }
 
-func (p *parser) copy() *parser {
-	return &parser{
-		lexer: p.lexer,
-		//index:  p.index,
-		//tokens: p.tokens,
-	}
-}
-
 func getValueOfPointer(vo reflect.Value) reflect.Value {
 	ptr := reflect.New(vo.Type())
 	p2 := ptr.Elem()
@@ -159,7 +140,7 @@ func getValueOfPointer(vo reflect.Value) reflect.Value {
 
 func (p *parser) parsePointerObject(vo reflect.Value) (int, error) {
 	ptr := getValueOfPointer(vo)
-	index, err := p.copy().parseStructure(getElemOfValue(ptr))
+	index, err := p.parseStructure(getElemOfValue(ptr))
 	if err != nil {
 		return index, err
 	}

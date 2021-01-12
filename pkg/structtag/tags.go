@@ -1,6 +1,10 @@
 package structtag
 
-import "reflect"
+import (
+	"reflect"
+)
+
+var cache = map[reflect.Type]Tags{}
 
 type Tags map[string]Tag
 
@@ -25,6 +29,13 @@ func FromValue(vo reflect.Value) (Tags, error) {
 	if vo.Kind() != reflect.Struct {
 		return map[string]Tag{}, nil
 	}
+
+	// TODO : @pungyeon - This is currently not thread safe. A mutex lock or channel is therefore needed, to ensure no race conditions are met. The reason for this cache implementation, is for general performance. This accounts for a lot of allocations, and since this is static on compilation, we can guarantee that this will never change. Therefore, the cache is a good place to start.
+	// TODO : @pungyeon - On further thought, this might actually break functionality!
+	if tags, ok := cache[vo.Type()]; ok {
+		return tags, nil
+	}
+
 	tags := Tags(make(map[string]Tag))
 	for i := 0; i < vo.NumField(); i++ {
 		f := vo.Type().Field(i)
@@ -42,6 +53,7 @@ func FromValue(vo reflect.Value) (Tags, error) {
 			tags[tag.FieldName] = tag
 		}
 	}
+	cache[vo.Type()] = tags
 	return tags, nil
 }
 

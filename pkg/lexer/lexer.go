@@ -162,15 +162,14 @@ func (l *lexer) readNumber() (token.Token, error) {
 }
 
 func (l *lexer) readString() (token.Token, error) {
-	var buf []byte
+	start := l.index + 1
 	for l.next() {
 		if l.value() == token.Quotation {
 			return token.Token{
-				Value: string(buf),
+				Value: l.input[start:l.index],
 				Type:  token.String,
 			}, nil
 		}
-		buf = append(buf, l.value())
 	}
 	return token.Token{}, errors.New("unexpected end of file, trying to read string")
 }
