@@ -3,7 +3,7 @@ package lexer
 import (
 	"errors"
 
-	"github.com/Pungyeon/json-validation/pkg/token"
+	"github.com/Pungyeon/required/pkg/token"
 )
 
 var (
