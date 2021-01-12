@@ -6,11 +6,9 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/Pungyeon/json-validation/pkg/lexer"
-
-	"github.com/Pungyeon/json-validation/pkg/token"
-
-	"github.com/Pungyeon/json-validation/pkg/structtag"
+	"github.com/Pungyeon/required/pkg/lexer"
+	"github.com/Pungyeon/required/pkg/structtag"
+	"github.com/Pungyeon/required/pkg/token"
 )
 
 type TestObject struct {

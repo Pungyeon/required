@@ -386,7 +386,7 @@ Running these tests, gives us the following output:
 ```
 --- FAIL: TestStringValidation (0.00s)
     --- FAIL: TestStringValidation/nil_string (0.00s)
-        /Users/lassemartinjakobsen/projects/json-validation/required/string_test.go:34: <nil>
+        /Users/lassemartinjakobsen/projects/required/required/string_test.go:34: <nil>
 ```
 
 Wait, What? So it turns out, that life is just not that simple in the land of Go. The reason for this, is that when we pass the `"{}"` JSON string, the `json.Unmarshal` will ignore the fields which aren't present. This means that because the `name` property doesn't appear in the JSON, the `UnmarshalJSON` function is never called, as it is completely skipped. Therefore, we never actually get a chance to check whether our required field contains anything, and therefore our tests fail miserably. 
