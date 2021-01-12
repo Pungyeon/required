@@ -4,16 +4,17 @@ import (
 	"errors"
 	"reflect"
 
+	"github.com/Pungyeon/required/pkg/lexer"
+
 	"github.com/Pungyeon/required/pkg/required"
 	"github.com/Pungyeon/required/pkg/structtag"
 	"github.com/Pungyeon/required/pkg/token"
 )
 
-func Parse(tokens token.Tokens, v interface{}) error {
+func Parse(l lexer.Lexer, v interface{}) error {
 	vo := getReflectValue(v)
 	p := &parser{
-		index:  -1,
-		tokens: tokens,
+		lexer: l,
 	}
 	obj, err := p.parse(vo)
 	if err != nil {
@@ -24,26 +25,26 @@ func Parse(tokens token.Tokens, v interface{}) error {
 }
 
 type parser struct {
-	tokens token.Tokens
-	index  int
-	obj    reflect.Value
+	lexer lexer.Lexer
+	obj   reflect.Value
 }
 
 func (p *parser) previous() token.Token {
-	return p.tokens[p.index-1]
+	return p.lexer.Previous()
+	//return p.tokens[p.index-1]
 }
 
 func (p *parser) current() token.Token {
-	return p.tokens[p.index]
+	return p.lexer.Current()
+	//return p.tokens[p.index]
 }
 
 func (p *parser) eof() bool {
-	return p.index >= len(p.tokens)
+	return p.lexer.EOF()
 }
 
 func (p *parser) next() bool {
-	p.index++
-	return p.index < len(p.tokens)
+	return p.lexer.Next()
 }
 
 func (p *parser) parse(vo reflect.Value) (reflect.Value, error) {
@@ -71,11 +72,11 @@ func (p *parser) parseObject(vo reflect.Value) (reflect.Value, error) {
 }
 
 func (p *parser) parseStructureWithCopy(vo reflect.Value) (reflect.Value, error) {
-	index, err := p.copy().parseStructure(vo)
+	_, err := p.copy().parseStructure(vo)
 	if err != nil {
 		return vo, err
 	}
-	p.index = index
+	//p.index = index
 	return vo, nil
 }
 
@@ -106,11 +107,11 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 			return p.setArray(sliceType, slice)
 		case token.OpenCurly:
 			obj := reflect.New(sliceType.Elem()).Elem()
-			index, err := p.copy().parseStructure(obj)
+			_, err := p.copy().parseStructure(obj)
 			if err != nil {
 				return obj, nil
 			}
-			p.index = index
+			//p.index = index
 			slice = append(slice, obj)
 			if p.current().Type == token.ClosingBrace {
 				return p.setArray(sliceType, slice)
@@ -143,8 +144,9 @@ func (p *parser) setArray(sliceType reflect.Type, slice []reflect.Value) (reflec
 
 func (p *parser) copy() *parser {
 	return &parser{
-		index:  p.index,
-		tokens: p.tokens,
+		lexer: p.lexer,
+		//index:  p.index,
+		//tokens: p.tokens,
 	}
 }
 
@@ -179,22 +181,22 @@ func (p *parser) parseStructure(vo reflect.Value) (int, error) {
 			obj := vo.Field(tag.FieldIndex)
 			val, err := p.parse(obj)
 			if err != nil {
-				return p.index, err
+				return 0, err
 			}
 			tags.Set(tag) // TODO : Make sure to not set this, if the token is a NullToken
 			obj.Set(val)
 			if req, ok := obj.Interface().(required.Required); ok {
 				if err := req.IsValueValid(); err != nil {
-					return p.index, err
+					return 0, err
 				}
 			}
 		}
 		if p.eof() || p.current().Type == token.ClosingCurly {
 			p.next()
-			return p.index, tags.CheckRequired()
+			return 0, tags.CheckRequired()
 		}
 	}
-	return p.index, tags.CheckRequired()
+	return 0, tags.CheckRequired()
 }
 
 func getReflectValue(v interface{}) reflect.Value {

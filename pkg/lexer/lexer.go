@@ -10,6 +10,72 @@ var (
 	errInvalidJSONString = errors.New("invalid JSON string")
 )
 
+type Result struct {
+	Token token.Token
+	Error error
+}
+
+type Lexer interface {
+	EOF() bool
+	Previous() token.Token
+	Current() token.Token
+	Next() bool
+}
+
+func NewLexer(input string) Lexer {
+	return &lexer{
+		input: input,
+		index: -1,
+	}
+}
+
+func (l *lexer) EOF() bool {
+	return l.index >= len(l.input)
+}
+
+func (l *lexer) Previous() token.Token {
+	return l.previous
+}
+
+func (l *lexer) Current() token.Token {
+	return l.current
+}
+
+func (l *lexer) Next() bool {
+	if !l.next() {
+		return false // should be eof error?
+	}
+	switch l.value() {
+	case token.Space, token.Tab, token.NewLine:
+		return l.Next()
+	case token.Quotation:
+		t, err := l.readString()
+		if err != nil {
+			panic(errInvalidJSONString) // TODO : no panic plox
+		}
+		return l.assign(t)
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		t, err := l.readNumber()
+		if err != nil {
+			panic(errInvalidJSONString) // TODO : no panic plox
+		}
+		l.index--
+		return l.assign(t)
+	case 't':
+		l.index += len("rue")
+		l.assign(token.Token{Value: "true", Type: token.Boolean})
+		return true
+	case 'f':
+		l.index += len("alse")
+		return l.assign(token.Token{Value: "false", Type: token.Boolean})
+	case 'n':
+		l.index += len("ull")
+		return l.assign(token.Token{Value: "null", Type: token.Null})
+	default:
+		return l.assign(token.NewToken(l.value()))
+	}
+}
+
 func Lex(input string) (token.Tokens, error) {
 	l := &lexer{
 		input: input,
@@ -50,9 +116,11 @@ func Lex(input string) (token.Tokens, error) {
 }
 
 type lexer struct {
-	index  int
-	input  string
-	output []token.Token
+	current  token.Token
+	previous token.Token
+	index    int
+	input    string
+	output   []token.Token
 }
 
 func (l *lexer) next() bool {
@@ -62,6 +130,12 @@ func (l *lexer) next() bool {
 
 func (l *lexer) value() byte {
 	return l.input[l.index]
+}
+
+func (l *lexer) assign(t token.Token) bool {
+	l.previous = l.current
+	l.current = t
+	return true
 }
 
 func (l *lexer) readNumber() (token.Token, error) {
