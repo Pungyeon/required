@@ -1,4 +1,4 @@
-module github.com/Pungyeon/json-validation
+module github.com/Pungyeon/required
 
 go 1.12
 
