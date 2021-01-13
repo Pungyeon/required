@@ -140,23 +140,21 @@ func (l *lexer) assign(t token.Token) bool {
 
 func (l *lexer) readNumber() (token.Token, error) {
 	tokenType := token.Integer
-	buf := []byte{l.value()}
+	start := l.index
 	for l.next() {
 		switch l.value() {
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-			buf = append(buf, l.value())
 		case '.':
 			tokenType = token.Float
-			buf = append(buf, l.value())
 		default:
 			return token.Token{
-				Value: string(buf),
+				Value: l.input[start:l.index],
 				Type:  tokenType,
 			}, nil
 		}
 	}
 	return token.Token{
-		Value: string(buf),
+		Value: l.input[start:l.index],
 		Type:  tokenType,
 	}, nil
 }
