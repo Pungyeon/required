@@ -154,6 +154,9 @@ func (p *parser) parseStructure(vo reflect.Value) error {
 		if p.current().Type == token.Colon {
 			tag := tags[p.previous().Value.(string)]
 			obj := vo.Field(tag.FieldIndex)
+			if !obj.CanSet() { // Private values may not be set.
+				continue
+			}
 			val, err := p.parse(obj)
 			if err != nil {
 				return err

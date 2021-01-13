@@ -52,12 +52,18 @@ var sample = `{
 	}`
 
 func LexString(t *testing.T, input string) *lexer.Lexer {
-	//tokens, err := lexer.Lex(input)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//return tokens
 	return lexer.NewLexer(input)
+}
+
+type PrivateFields struct {
+	ding string
+}
+
+func TestPrivateFields(t *testing.T) {
+	var pf PrivateFields
+	if err := Parse(LexString(t, `{"ding": "dingeling"}`), &pf); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestParserSimple(t *testing.T) {
