@@ -84,45 +84,36 @@ func determineArrayType(vo reflect.Value) reflect.Type {
 }
 
 func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
-	var slice []reflect.Value
+	arr := reflect.MakeSlice(sliceType, 0, 4)
 	for p.next() {
 		switch p.current().Type {
 		case token.Comma:
 			continue // skip commas
 		case token.ClosingBrace:
-			return p.setArray(sliceType, slice)
+			return arr, nil
 		case token.OpenCurly:
 			obj := reflect.New(sliceType.Elem()).Elem()
 			if err := p.parseStructure(obj); err != nil {
 				return obj, nil
 			}
-			slice = append(slice, obj)
+			arr = reflect.Append(arr, obj)
 			if p.current().Type == token.ClosingBrace {
-				return p.setArray(sliceType, slice)
+				return arr, nil
 			}
 		case token.OpenBrace:
 			inner, err := p.parseArray(sliceType.Elem())
 			if err != nil {
 				return inner, err
 			}
-			slice = append(slice, inner)
+			arr = reflect.Append(arr, inner)
 		default:
 			val, err := p.current().AsValue(sliceType.Elem())
 			if err != nil {
 				return val, err
 			}
-			slice = append(slice, val)
+			arr = reflect.Append(arr, val)
 		}
 	}
-	return p.setArray(sliceType, slice)
-}
-
-func (p *parser) setArray(sliceType reflect.Type, slice []reflect.Value) (reflect.Value, error) {
-	arr := reflect.MakeSlice(sliceType, len(slice), len(slice))
-	for i, val := range slice {
-		arr.Index(i).Set(val)
-	}
-
 	return arr, nil
 }
 

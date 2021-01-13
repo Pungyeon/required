@@ -3,6 +3,8 @@ package json
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"reflect"
 	"regexp"
 	"testing"
 
@@ -476,4 +478,18 @@ func BenchmarkPkgUnmarshal(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+}
+
+func TestReflectSlices(t *testing.T) {
+	arr := reflect.MakeSlice(reflect.TypeOf([]int{}), 0, 0)
+	arr = reflect.Append(arr, reflect.ValueOf(2))
+
+	fmt.Println(arr.Index(0))
+
+	//v := reflect.ValueOf(&d)
+	//v.Set(arr)
+	//
+	//if d[0] != 2 {
+	//	t.Fatal(d[0])
+	//}
 }
