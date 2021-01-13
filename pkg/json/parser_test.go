@@ -51,7 +51,7 @@ var sample = `{
 		"float": 3.2
 	}`
 
-func LexString(t *testing.T, input string) lexer.Lexer {
+func LexString(t *testing.T, input string) *lexer.Lexer {
 	//tokens, err := lexer.Lex(input)
 	//if err != nil {
 	//	t.Fatal(err)
@@ -251,7 +251,7 @@ func TestMapStringStringUnmarshal(t *testing.T) {
 	}
 }
 
-func testParse(t *testing.T, lexer lexer.Lexer, v interface{}) {
+func testParse(t *testing.T, lexer *lexer.Lexer, v interface{}) {
 	if err := Parse(lexer, v); err != nil {
 		t.Fatal(err)
 	}

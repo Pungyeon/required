@@ -11,7 +11,7 @@ import (
 	"github.com/Pungyeon/required/pkg/token"
 )
 
-func Parse(l lexer.Lexer, v interface{}) error {
+func Parse(l *lexer.Lexer, v interface{}) error {
 	vo := getReflectValue(v)
 	obj, err := (&parser{lexer: l}).parse(vo)
 	if err != nil {
@@ -22,7 +22,7 @@ func Parse(l lexer.Lexer, v interface{}) error {
 }
 
 type parser struct {
-	lexer lexer.Lexer
+	lexer *lexer.Lexer
 	obj   reflect.Value
 }
 

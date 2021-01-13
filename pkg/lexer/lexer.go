@@ -15,33 +15,33 @@ type Result struct {
 	Error error
 }
 
-type Lexer interface {
+type ILexer interface {
 	EOF() bool
 	Previous() token.Token
 	Current() token.Token
 	Next() bool
 }
 
-func NewLexer(input string) Lexer {
-	return &lexer{
+func NewLexer(input string) *Lexer {
+	return &Lexer{
 		input: input,
 		index: -1,
 	}
 }
 
-func (l *lexer) EOF() bool {
+func (l *Lexer) EOF() bool {
 	return l.index >= len(l.input)
 }
 
-func (l *lexer) Previous() token.Token {
+func (l *Lexer) Previous() token.Token {
 	return l.previous
 }
 
-func (l *lexer) Current() token.Token {
+func (l *Lexer) Current() token.Token {
 	return l.current
 }
 
-func (l *lexer) Next() bool {
+func (l *Lexer) Next() bool {
 	if !l.next() {
 		return false // should be eof error?
 	}
@@ -77,7 +77,7 @@ func (l *lexer) Next() bool {
 }
 
 func Lex(input string) (token.Tokens, error) {
-	l := &lexer{
+	l := &Lexer{
 		input: input,
 		index: -1,
 	}
@@ -115,7 +115,7 @@ func Lex(input string) (token.Tokens, error) {
 	return l.output, nil
 }
 
-type lexer struct {
+type Lexer struct {
 	current  token.Token
 	previous token.Token
 	index    int
@@ -123,22 +123,22 @@ type lexer struct {
 	output   []token.Token
 }
 
-func (l *lexer) next() bool {
+func (l *Lexer) next() bool {
 	l.index++
 	return l.index < len(l.input)
 }
 
-func (l *lexer) value() byte {
+func (l *Lexer) value() byte {
 	return l.input[l.index]
 }
 
-func (l *lexer) assign(t token.Token) bool {
+func (l *Lexer) assign(t token.Token) bool {
 	l.previous = l.current
 	l.current = t
 	return true
 }
 
-func (l *lexer) readNumber() (token.Token, error) {
+func (l *Lexer) readNumber() (token.Token, error) {
 	tokenType := token.Integer
 	start := l.index
 	for l.next() {
@@ -159,7 +159,7 @@ func (l *lexer) readNumber() (token.Token, error) {
 	}, nil
 }
 
-func (l *lexer) readString() (token.Token, error) {
+func (l *Lexer) readString() (token.Token, error) {
 	start := l.index + 1
 	for l.next() {
 		if l.value() == token.Quotation {
