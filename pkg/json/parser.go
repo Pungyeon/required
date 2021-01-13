@@ -151,8 +151,8 @@ func (p *parser) parseStructure(vo reflect.Value) error {
 		return p.parsePointerObject(vo)
 	}
 	for p.next() {
-		if p.current().Value == ":" {
-			tag := tags[p.previous().Value]
+		if p.current().Type == token.Colon {
+			tag := tags[p.previous().Value.(string)]
 			obj := vo.Field(tag.FieldIndex)
 			val, err := p.parse(obj)
 			if err != nil {
@@ -209,7 +209,7 @@ func (p *parser) parseField() (reflect.Value, error) {
 	for p.next() {
 		if p.current().Type == token.Colon {
 			val := reflect.New(token.ReflectTypeString).Elem()
-			val.SetString(p.previous().Value)
+			val.SetString(p.previous().Value.(string))
 			return val, nil
 		}
 	}

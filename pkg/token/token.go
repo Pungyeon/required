@@ -49,42 +49,42 @@ const (
 	Boolean        TokenType = "BOOLEAN"
 )
 
-var TokenTypes = map[string]TokenType{
-	"UNKNOWN":    Unknown,
-	"BOOLEAN":    Boolean,
-	"INTEGER":    Integer,
-	"FLOAT":      Float,
-	"STRING":     String,
-	"NULL":       Null,
-	"KEY_TOKEN":  Key,
-	":":          Colon,
-	",":          Comma,
-	"WHITESPACE": WhiteSpace,
-	"[":          OpenBrace,
-	"]":          ClosingBrace,
-	"(":          OpenBracket,
-	")":          ClosingBracket,
-	"{":          OpenCurly,
-	"}":          ClosingCurly,
-	".":          FullStop,
+var TokenTypes = map[byte]TokenType{
+	// "UNKNOWN":    Unknown,
+	// "BOOLEAN":    Boolean,
+	// "INTEGER":    Integer,
+	// "FLOAT":      Float,
+	// "STRING":     String,
+	// "NULL":       Null,
+	// "KEY_TOKEN":  Key,
+	// "WHITESPACE": WhiteSpace,
+	':': Colon,
+	',': Comma,
+	'[': OpenBrace,
+	']': ClosingBrace,
+	'(': OpenBracket,
+	')': ClosingBracket,
+	'{': OpenCurly,
+	'}': ClosingCurly,
+	'.': FullStop,
 }
 
 type Token struct {
-	Value string
+	Value interface{}
 	Type  TokenType
 }
 
 func NewToken(b byte) Token {
-	t, ok := TokenTypes[string(b)]
+	t, ok := TokenTypes[b]
 	if !ok {
 
 		return Token{
-			Value: string(b),
+			Value: b,
 			Type:  Unknown,
 		}
 	}
 	return Token{
-		Value: string(b),
+		Value: b,
 		Type:  t,
 	}
 }
@@ -97,24 +97,24 @@ func (token Token) AsValue(vt reflect.Type) (reflect.Value, error) {
 	val := reflect.New(vt).Elem()
 	switch token.Type {
 	case String:
-		val.SetString(token.Value)
+		val.SetString(token.Value.(string))
 		return val, nil
 	case Integer:
-		n, err := strconv.ParseInt(token.Value, 10, 64)
+		n, err := strconv.ParseInt(token.Value.(string), 10, 64)
 		if err != nil {
 			return val, err
 		}
 		val.SetInt(n)
 		return val, err
 	case Float:
-		f, err := strconv.ParseFloat(token.Value, 64)
+		f, err := strconv.ParseFloat(token.Value.(string), 64)
 		if err != nil {
 			return val, err
 		}
 		val.SetFloat(f)
 		return val, err
 	case Boolean:
-		if token.Value[0] == 't' {
+		if token.Value.(string)[0] == 't' {
 			val.SetBool(true)
 		} else {
 			val.SetBool(false)
@@ -129,11 +129,11 @@ func (token Token) ToValue() (reflect.Value, error) {
 	switch token.Type {
 	case String:
 		val := reflect.New(ReflectTypeString).Elem()
-		val.SetString(token.Value)
+		val.SetString(token.Value.(string))
 		return val, nil
 	case Integer:
 		val := reflect.New(ReflectTypeInteger).Elem()
-		n, err := strconv.ParseInt(token.Value, 10, 64)
+		n, err := strconv.ParseInt(token.Value.(string), 10, 64)
 		if err != nil {
 			return val, err
 		}
@@ -141,7 +141,7 @@ func (token Token) ToValue() (reflect.Value, error) {
 		return val, err
 	case Float:
 		val := reflect.New(ReflectTypeFloat).Elem()
-		f, err := strconv.ParseFloat(token.Value, 64)
+		f, err := strconv.ParseFloat(token.Value.(string), 64)
 		if err != nil {
 			return val, err
 		}
@@ -149,7 +149,7 @@ func (token Token) ToValue() (reflect.Value, error) {
 		return val, err
 	case Boolean:
 		val := reflect.New(ReflectTypeBool).Elem()
-		if token.Value[0] == 't' {
+		if token.Value.(string)[0] == 't' {
 			val.SetBool(true)
 		} else {
 			val.SetBool(false)
@@ -165,7 +165,7 @@ func (token Token) IsEnding() bool {
 }
 
 func (token Token) String() string {
-	return token.Value + ": " + string(token.Type)
+	return token.Value.(string) + ": " + string(token.Type)
 }
 
 type Tokens []Token
@@ -173,7 +173,7 @@ type Tokens []Token
 func (tokens Tokens) Join(sep string) string {
 	var buf bytes.Buffer
 	for i, token := range tokens {
-		buf.WriteString(token.Value)
+		buf.WriteString(token.Value.(string))
 		if i < len(tokens)-1 {
 			buf.WriteString(sep)
 		}
