@@ -13,10 +13,7 @@ import (
 
 func Parse(l lexer.Lexer, v interface{}) error {
 	vo := getReflectValue(v)
-	p := &parser{
-		lexer: l,
-	}
-	obj, err := p.parse(vo)
+	obj, err := (&parser{lexer: l}).parse(vo)
 	if err != nil {
 		return err
 	}
@@ -66,8 +63,7 @@ func (p *parser) parseObject(vo reflect.Value) (reflect.Value, error) {
 	if kind == reflect.Map {
 		return p.parseMap(_type)
 	}
-	_, err := p.parseStructure(vo)
-	return vo, err
+	return vo, p.parseStructure(vo)
 }
 
 func determineObjectType(vo reflect.Value) (reflect.Kind, reflect.Type) {
@@ -97,8 +93,7 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 			return p.setArray(sliceType, slice)
 		case token.OpenCurly:
 			obj := reflect.New(sliceType.Elem()).Elem()
-			_, err := p.parseStructure(obj)
-			if err != nil {
+			if err := p.parseStructure(obj); err != nil {
 				return obj, nil
 			}
 			slice = append(slice, obj)
@@ -138,20 +133,19 @@ func getValueOfPointer(vo reflect.Value) reflect.Value {
 	return reflect.ValueOf(ptr.Elem().Interface())
 }
 
-func (p *parser) parsePointerObject(vo reflect.Value) (int, error) {
+func (p *parser) parsePointerObject(vo reflect.Value) error {
 	ptr := getValueOfPointer(vo)
-	index, err := p.parseStructure(getElemOfValue(ptr))
-	if err != nil {
-		return index, err
+	if err := p.parseStructure(getElemOfValue(ptr)); err != nil {
+		return err
 	}
 	vo.Set(ptr)
-	return index, err
+	return nil
 }
 
-func (p *parser) parseStructure(vo reflect.Value) (int, error) {
+func (p *parser) parseStructure(vo reflect.Value) error {
 	tags, err := structtag.FromValue(vo)
 	if err != nil {
-		return -1, err
+		return err
 	}
 	if vo.Kind() == reflect.Ptr {
 		return p.parsePointerObject(vo)
@@ -162,22 +156,22 @@ func (p *parser) parseStructure(vo reflect.Value) (int, error) {
 			obj := vo.Field(tag.FieldIndex)
 			val, err := p.parse(obj)
 			if err != nil {
-				return 0, err
+				return err
 			}
 			tags.Set(tag) // TODO : Make sure to not set this, if the token is a NullToken
 			obj.Set(val)
 			if req, ok := obj.Interface().(required.Required); ok {
 				if err := req.IsValueValid(); err != nil {
-					return 0, err
+					return err
 				}
 			}
 		}
 		if p.eof() || p.current().Type == token.ClosingCurly {
 			p.next()
-			return 0, tags.CheckRequired()
+			return tags.CheckRequired()
 		}
 	}
-	return 0, tags.CheckRequired()
+	return tags.CheckRequired()
 }
 
 func getReflectValue(v interface{}) reflect.Value {

@@ -77,6 +77,7 @@ type Token struct {
 func NewToken(b byte) Token {
 	t, ok := TokenTypes[string(b)]
 	if !ok {
+
 		return Token{
 			Value: string(b),
 			Type:  Unknown,
