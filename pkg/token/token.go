@@ -173,9 +173,17 @@ type Tokens []Token
 func (tokens Tokens) Join(sep string) string {
 	var buf bytes.Buffer
 	for i, token := range tokens {
-		buf.WriteString(token.Value.(string))
-		if i < len(tokens)-1 {
-			buf.WriteString(sep)
+		switch token.Value.(type) {
+		case string:
+			buf.WriteString(token.Value.(string))
+			if i < len(tokens)-1 {
+				buf.WriteString(sep)
+			}
+		case byte:
+			buf.WriteString(string(token.Value.(byte)))
+			if i < len(tokens)-1 {
+				buf.WriteString(sep)
+			}
 		}
 	}
 	return buf.String()
