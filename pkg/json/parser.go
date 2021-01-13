@@ -83,8 +83,17 @@ func determineArrayType(vo reflect.Value) reflect.Type {
 	return vo.Type()
 }
 
+func insertAt(arr reflect.Value, i int, val reflect.Value) reflect.Value {
+	if i < arr.Len() {
+		arr.Index(i).Set(val)
+		return arr
+	}
+	return reflect.Append(arr, val)
+}
+
 func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
-	arr := reflect.MakeSlice(sliceType, 0, 4)
+	arr := reflect.MakeSlice(sliceType, 3, 3)
+	var i int
 	for p.next() {
 		switch p.current().Type {
 		case token.Comma:
@@ -96,7 +105,8 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 			if err := p.parseStructure(obj); err != nil {
 				return obj, nil
 			}
-			arr = reflect.Append(arr, obj)
+			arr = insertAt(arr, i, obj)
+			i++
 			if p.current().Type == token.ClosingBrace {
 				return arr, nil
 			}
@@ -105,13 +115,15 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 			if err != nil {
 				return inner, err
 			}
-			arr = reflect.Append(arr, inner)
+			arr = insertAt(arr, i, inner)
+			i++
 		default:
 			val, err := p.current().AsValue(sliceType.Elem())
 			if err != nil {
 				return val, err
 			}
-			arr = reflect.Append(arr, val)
+			arr = insertAt(arr, i, val)
+			i++
 		}
 	}
 	return arr, nil

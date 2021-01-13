@@ -481,15 +481,7 @@ func BenchmarkPkgUnmarshal(b *testing.B) {
 }
 
 func TestReflectSlices(t *testing.T) {
-	arr := reflect.MakeSlice(reflect.TypeOf([]int{}), 0, 0)
-	arr = reflect.Append(arr, reflect.ValueOf(2))
-
+	arr := reflect.MakeSlice(reflect.TypeOf([]int{}), 0, 10)
+	arr = insertAt(arr, 0, reflect.ValueOf(2))
 	fmt.Println(arr.Index(0))
-
-	//v := reflect.ValueOf(&d)
-	//v.Set(arr)
-	//
-	//if d[0] != 2 {
-	//	t.Fatal(d[0])
-	//}
 }
