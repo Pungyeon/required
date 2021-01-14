@@ -125,6 +125,37 @@ func (token Token) AsValue(vt reflect.Type) (reflect.Value, error) {
 	}
 }
 
+func (token Token) SetValueOf(val reflect.Value) error {
+	switch token.Type {
+	case String:
+		val.SetString(token.Value.(string))
+		return nil
+	case Integer:
+		n, err := strconv.ParseInt(token.Value.(string), 10, 64)
+		if err != nil {
+			return err
+		}
+		val.SetInt(n)
+		return err
+	case Float:
+		f, err := strconv.ParseFloat(token.Value.(string), 64)
+		if err != nil {
+			return err
+		}
+		val.SetFloat(f)
+		return err
+	case Boolean:
+		if token.Value.(string)[0] == 't' {
+			val.SetBool(true)
+		} else {
+			val.SetBool(false)
+		}
+		return nil
+	default:
+		return fmt.Errorf("cannot convert token to value: %v", token)
+	}
+}
+
 func (token Token) ToValue() (reflect.Value, error) {
 	switch token.Type {
 	case String:

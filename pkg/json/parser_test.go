@@ -3,8 +3,6 @@ package json
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-	"reflect"
 	"regexp"
 	"testing"
 
@@ -163,7 +161,7 @@ func TestParseMultiArray(t *testing.T) {
 	}
 
 	if len(obj) != 2 {
-		t.Fatal("length of object:", len(obj))
+		t.Fatal("length of object:", len(obj), obj)
 	}
 
 	if len(obj[0]) != 3 {
@@ -221,7 +219,7 @@ func TestParseObjectArray(t *testing.T) {
 	}
 
 	if len(obj) != 2 {
-		t.Fatal("length of object:", len(obj))
+		t.Fatal("length of object:", len(obj), obj)
 	}
 
 	if obj[1].Name != "basse" {
@@ -478,10 +476,4 @@ func BenchmarkPkgUnmarshal(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
-}
-
-func TestReflectSlices(t *testing.T) {
-	arr := reflect.MakeSlice(reflect.TypeOf([]int{}), 0, 10)
-	arr = insertAt(arr, 0, reflect.ValueOf(2))
-	fmt.Println(arr.Index(0))
 }

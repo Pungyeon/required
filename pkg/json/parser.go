@@ -4,9 +4,10 @@ import (
 	"errors"
 	"reflect"
 
+	"github.com/Pungyeon/required/pkg/required"
+
 	"github.com/Pungyeon/required/pkg/lexer"
 
-	"github.com/Pungyeon/required/pkg/required"
 	"github.com/Pungyeon/required/pkg/structtag"
 	"github.com/Pungyeon/required/pkg/token"
 )
@@ -52,7 +53,10 @@ func (p *parser) parse(vo reflect.Value) (reflect.Value, error) {
 		case token.Null:
 			return vo, nil
 		default:
-			return p.current().AsValue(vo.Type())
+			if vo.Kind() == reflect.Interface {
+				return p.current().AsValue(vo.Type())
+			}
+			return vo, p.current().SetValueOf(vo)
 		}
 	}
 	return reflect.New(token.ReflectTypeString), nil // shouldn't this be an error?
@@ -93,22 +97,22 @@ func insertAt(arr reflect.Value, i int, val reflect.Value) reflect.Value {
 
 func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 	arr := reflect.MakeSlice(sliceType, 3, 3)
+	val := reflect.New(sliceType.Elem()).Elem()
 	var i int
 	for p.next() {
 		switch p.current().Type {
 		case token.Comma:
 			continue // skip commas
 		case token.ClosingBrace:
-			return arr, nil
+			return arr.Slice(0, i), nil
 		case token.OpenCurly:
-			obj := reflect.New(sliceType.Elem()).Elem()
-			if err := p.parseStructure(obj); err != nil {
-				return obj, nil
+			if err := p.parseStructure(val); err != nil {
+				return val, nil
 			}
-			arr = insertAt(arr, i, obj)
+			arr = insertAt(arr, i, val)
 			i++
 			if p.current().Type == token.ClosingBrace {
-				return arr, nil
+				return arr.Slice(0, i), nil
 			}
 		case token.OpenBrace:
 			inner, err := p.parseArray(sliceType.Elem())
@@ -118,22 +122,30 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 			arr = insertAt(arr, i, inner)
 			i++
 		default:
-			val, err := p.current().AsValue(sliceType.Elem())
-			if err != nil {
-				return val, err
+			// Doing this check saves ~12 allocations per op
+			if sliceType.Elem().Kind() == reflect.Interface {
+				var err error
+				val, err = p.current().AsValue(sliceType.Elem())
+				if err != nil {
+					return val, nil
+				}
+			} else {
+				if err := p.current().SetValueOf(val); err != nil {
+					return val, nil
+				}
 			}
 			arr = insertAt(arr, i, val)
 			i++
 		}
 	}
-	return arr, nil
+	return arr.Slice(0, i), nil
 }
 
 func getValueOfPointer(vo reflect.Value) reflect.Value {
-	ptr := reflect.New(vo.Type())
-	p2 := ptr.Elem()
-	ptr.Elem().Set(reflect.New(p2.Type().Elem()))
-	return reflect.ValueOf(ptr.Elem().Interface())
+	a := reflect.New(vo.Type())
+	b := a.Elem()
+	a.Elem().Set(reflect.New(b.Type().Elem()))
+	return reflect.ValueOf(a.Elem().Interface())
 }
 
 func (p *parser) parsePointerObject(vo reflect.Value) error {
@@ -166,6 +178,7 @@ func (p *parser) parseStructure(vo reflect.Value) error {
 			}
 			tags.Set(tag) // TODO : Make sure to not set this, if the token is a NullToken
 			obj.Set(val)
+			// TODO : This is currently 10+ allocations per op :/
 			if req, ok := obj.Interface().(required.Required); ok {
 				if err := req.IsValueValid(); err != nil {
 					return err

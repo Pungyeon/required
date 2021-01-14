@@ -31,7 +31,7 @@ func FromValue(vo reflect.Value) (Tags, error) {
 	}
 
 	// TODO : @pungyeon - This is currently not thread safe. A mutex lock or channel is therefore needed, to ensure no race conditions are met. The reason for this cache implementation, is for general performance. This accounts for a lot of allocations, and since this is static on compilation, we can guarantee that this will never change. Therefore, the cache is a good place to start.
-	// TODO : @pungyeon - On further thought, this might actually break functionality!
+	// TODO : @pungyeon - On further thought this breaks functionality completely :|!
 	if tags, ok := cache[vo.Type()]; ok {
 		return tags, nil
 	}
