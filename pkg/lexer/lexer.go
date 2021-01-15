@@ -24,7 +24,7 @@ type ILexer interface {
 
 func NewLexer(input string) *Lexer {
 	return &Lexer{
-		input: input,
+		input: []byte(input),
 		index: -1,
 	}
 }
@@ -40,6 +40,12 @@ func (l *Lexer) Previous() token.Token {
 func (l *Lexer) Current() token.Token {
 	return l.current
 }
+
+var (
+	TRUE  = []byte("true")
+	FALSE = []byte("false")
+	NULL  = []byte("null")
+)
 
 func (l *Lexer) Next() bool {
 	if !l.next() {
@@ -63,22 +69,22 @@ func (l *Lexer) Next() bool {
 		return l.assign(t)
 	case 't':
 		l.index += len("rue")
-		l.assign(token.Token{Value: "true", Type: token.Boolean})
+		l.assign(token.Token{Value: TRUE, Type: token.Boolean})
 		return true
 	case 'f':
 		l.index += len("alse")
-		return l.assign(token.Token{Value: "false", Type: token.Boolean})
+		return l.assign(token.Token{Value: FALSE, Type: token.Boolean})
 	case 'n':
 		l.index += len("ull")
-		return l.assign(token.Token{Value: "null", Type: token.Null})
+		return l.assign(token.Token{Value: NULL, Type: token.Null})
 	default:
-		return l.assign(token.NewToken(l.value()))
+		return l.assign(token.NewToken(l.input, l.index))
 	}
 }
 
 func Lex(input string) (token.Tokens, error) {
 	l := &Lexer{
-		input: input,
+		input: []byte(input),
 		index: -1,
 	}
 
@@ -100,16 +106,16 @@ func Lex(input string) (token.Tokens, error) {
 			l.output = append(l.output, t)
 			l.index--
 		case 't':
-			l.output = append(l.output, token.Token{Value: "true", Type: token.Boolean})
+			l.output = append(l.output, token.Token{Value: TRUE, Type: token.Boolean})
 			l.index += len("rue")
 		case 'f':
-			l.output = append(l.output, token.Token{Value: "false", Type: token.Boolean})
+			l.output = append(l.output, token.Token{Value: FALSE, Type: token.Boolean})
 			l.index += len("alse")
 		case 'n':
-			l.output = append(l.output, token.Token{Value: "null", Type: token.Null})
+			l.output = append(l.output, token.Token{Value: NULL, Type: token.Null})
 			l.index += len("ull")
 		default:
-			l.output = append(l.output, token.NewToken(l.value()))
+			l.output = append(l.output, token.NewToken(l.input, l.index))
 		}
 	}
 	return l.output, nil
@@ -119,7 +125,7 @@ type Lexer struct {
 	current  token.Token
 	previous token.Token
 	index    int
-	input    string
+	input    []byte
 	output   []token.Token
 }
 

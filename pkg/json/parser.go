@@ -167,7 +167,7 @@ func (p *parser) parseStructure(vo reflect.Value) error {
 	}
 	for p.next() {
 		if p.current().Type == token.Colon {
-			tag := tags[p.previous().Value.(string)]
+			tag := tags[p.previous().ToString()]
 			obj := vo.Field(tag.FieldIndex)
 			if !obj.CanSet() { // Private values may not be set.
 				continue
@@ -228,7 +228,7 @@ func (p *parser) parseField() (reflect.Value, error) {
 	for p.next() {
 		if p.current().Type == token.Colon {
 			val := reflect.New(token.ReflectTypeString).Elem()
-			val.SetString(p.previous().Value.(string))
+			val.SetString(p.previous().ToString())
 			return val, nil
 		}
 	}
