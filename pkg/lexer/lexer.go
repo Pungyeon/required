@@ -22,9 +22,9 @@ type ILexer interface {
 	Next() bool
 }
 
-func NewLexer(input string) *Lexer {
+func NewLexer(input []byte) *Lexer {
 	return &Lexer{
-		input: []byte(input),
+		input: input,
 		index: -1,
 	}
 }

@@ -30,7 +30,7 @@ func BenchmarkLexerPerformance(b *testing.B) {
 
 func BenchmarkLexerStreamPerformance(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		l := NewLexer(`{"foo": [1, 2, {"bar": 2}, true]}`)
+		l := NewLexer([]byte(`{"foo": [1, 2, {"bar": 2}, true]}`))
 		for l.Next() {
 			_ = l.Current()
 		}

@@ -52,7 +52,7 @@ var sample = `{
 	}`
 
 func LexString(t *testing.T, input string) *lexer.Lexer {
-	return lexer.NewLexer(input)
+	return lexer.NewLexer([]byte(input))
 }
 
 type PrivateFields struct {

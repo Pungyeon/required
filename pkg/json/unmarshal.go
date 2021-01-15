@@ -7,5 +7,5 @@ func Unmarshal(data []byte, v interface{}) error {
 	//if err != nil {
 	//	return err
 	//}
-	return Parse(lexer.NewLexer(string(data)), v)
+	return Parse(lexer.NewLexer(data), v)
 }
