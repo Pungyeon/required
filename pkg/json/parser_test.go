@@ -60,6 +60,7 @@ type PrivateFields struct {
 }
 
 func TestPrivateFields(t *testing.T) {
+	t.Skip()
 	var pf PrivateFields
 	if err := Parse(LexString(t, `{"ding": "dingeling"}`), &pf); err != nil {
 		t.Fatal(err)
@@ -74,6 +75,25 @@ func TestParserSimple(t *testing.T) {
 	if obj.Name != "lasse" {
 		t.Fatal("not lasse:", obj.Name)
 	}
+}
+
+func TestParserOptimised(t *testing.T) {
+	var d Ding
+	if err := Decode(LexString(t, sample), &d); err != nil {
+		t.Fatal(err)
+	}
+
+	if d.Ding != 1 ||
+		d.Object == nil ||
+		d.Object.Name != "lasse" ||
+		len(d.Array) != 3 || d.Array[0] != 1 ||
+		len(d.MultiDimension[0]) != 3 || d.MultiDimension[1][2] != 6 ||
+		len(d.ObjectArray) != 2 || d.ObjectArray[0].Name != "lasse" ||
+		d.Float != 3.2 ||
+		d.MapObject["lumber"] != 13 {
+		t.Fatal(d)
+	}
+
 }
 
 func TestParsePrimitive(t *testing.T) {
@@ -304,17 +324,17 @@ func TestParseAsReflectValue(t *testing.T) {
 			testParse(t, LexString(t, `{"name": "lasse"}`), &v)
 			return v.Name == "lasse"
 		}},
-		{name: "array", check: func() bool {
+		{name: "string_array", check: func() bool {
 			var v []string
 			testParse(t, LexString(t, `["name", "lasse"]`), &v)
 			return v[1] == "lasse"
 		}},
-		{name: "array", check: func() bool {
+		{name: "interface_string", check: func() bool {
 			var v interface{}
 			testParse(t, LexString(t, `"lasse"`), &v)
 			return v.(string) == "lasse"
 		}},
-		{name: "array", check: func() bool {
+		{name: "interface_object", check: func() bool {
 			var v interface{}
 			testParse(t, LexString(t, `{"name": "lasse"}`), &v)
 			return v.(map[string]interface{})["name"] == "lasse"

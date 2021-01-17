@@ -9,3 +9,7 @@ func Unmarshal(data []byte, v interface{}) error {
 	//}
 	return Parse(lexer.NewLexer(data), v)
 }
+
+func DecodeJSON(data []byte, v interface{}) error {
+	return Decode(lexer.NewLexer(data), v)
+}

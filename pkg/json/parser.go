@@ -4,21 +4,186 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/Pungyeon/required/pkg/required"
-
 	"github.com/Pungyeon/required/pkg/lexer"
-
+	"github.com/Pungyeon/required/pkg/required"
 	"github.com/Pungyeon/required/pkg/structtag"
 	"github.com/Pungyeon/required/pkg/token"
 )
 
 func Parse(l *lexer.Lexer, v interface{}) error {
-	vo := getReflectValue(v)
-	obj, err := (&parser{lexer: l}).parse(vo)
+	return Decode(l, v)
+}
+
+func Decode(l *lexer.Lexer, v interface{}) error {
+	val := getReflectValue(v)
+	if val.Kind() == reflect.Interface {
+		obj, err := (&parser{lexer: l}).parse(val)
+		if err != nil {
+			return err
+		}
+		val.Set(obj)
+		return nil
+	}
+	return (&parser{lexer: l}).decode(val)
+}
+
+func (p *parser) decode(val reflect.Value) error {
+	for p.next() {
+		switch p.current().Type {
+		case token.OpenBrace:
+			return p.decodeArray(val)
+		case token.OpenCurly:
+			if val.Kind() == reflect.Map {
+				elem, err := p.parseMap(val.Type().Elem())
+				if err != nil {
+					return err
+				}
+				val.Set(elem)
+				return nil
+			}
+			return p.decodeObject(val)
+		case token.Null:
+			return nil
+		default:
+			if val.Kind() == reflect.Interface {
+				v, err := p.current().AsValue(val.Type())
+				if err != nil {
+					return err
+				}
+				val.Set(v)
+				return nil
+			}
+			return p.current().SetValueOf(val)
+		}
+	}
+	return nil
+}
+
+func (p *parser) decodeField(parent reflect.Value, index int) error {
+	val := parent.Field(index)
+
+	for p.next() {
+		switch p.current().Type {
+		case token.OpenBrace:
+			return p.decodeArray(val)
+		case token.OpenCurly:
+			if val.IsZero() {
+				//kind, _type := determineObjectType(val)
+				if val.Kind() == reflect.Ptr {
+					vo := getValueOfPointer(val)
+					if err := p.decodeObject(getElemOfValue(vo)); err != nil {
+						return err
+					}
+					val.Set(vo)
+					return nil
+				}
+				elem, err := p.parseMap(val.Type().Elem())
+				if err != nil {
+					return err
+				}
+				val.Set(elem)
+				return nil
+			}
+			return p.decodeObject(val)
+		case token.Null:
+			return nil
+		default:
+			if val.Kind() == reflect.Interface {
+				v, err := p.current().AsValue(val.Type())
+				if err != nil {
+					return err
+				}
+				val.Set(v)
+				return nil
+			}
+			return p.current().SetValueOf(val)
+		}
+	}
+	return nil
+}
+
+func (p *parser) decodeObject(val reflect.Value) error {
+	tags, err := structtag.FromValue(val)
 	if err != nil {
 		return err
 	}
-	vo.Set(obj)
+	for p.next() {
+		if p.current().Type == token.Colon {
+			tag := tags[p.previous().ToString()]
+			if err := p.decodeField(val, tag.FieldIndex); err != nil {
+				return err
+			}
+
+			// TODO : This is currently 10+ allocations per op :/
+			if req, ok := val.Field(tag.FieldIndex).Interface().(required.Required); ok {
+				if err := req.IsValueValid(); err != nil {
+					return err
+				}
+			}
+			tags.Set(tag)
+		}
+		if p.eof() || p.current().Type == token.ClosingCurly {
+			p.next()
+			break
+		}
+	}
+
+	return tags.CheckRequired()
+}
+
+func grow(arr reflect.Value, i int) reflect.Value {
+	if arr.Len() <= i {
+		grown := reflect.MakeSlice(arr.Type(), i*2, i*2)
+		reflect.Copy(grown, arr)
+		return grown
+	}
+	return arr
+}
+
+func (p *parser) decodeArray(arr reflect.Value) error {
+	arr.Set(reflect.MakeSlice(arr.Type(), 3, 3))
+	//val := reflect.New(arr.Type().Elem()).Elem()
+	var i int
+	for p.next() {
+		switch p.current().Type {
+		case token.Comma:
+			continue // skip commas
+		case token.ClosingBrace:
+			arr.Set(arr.Slice(0, i))
+			return nil
+		case token.OpenCurly:
+			arr.Set(grow(arr, i))
+			if err := p.decodeObject(arr.Index(i)); err != nil {
+				return err
+			}
+			i++
+			if p.current().Type == token.ClosingBrace {
+				arr.Set(arr.Slice(0, i))
+				return nil
+			}
+		case token.OpenBrace:
+			arr.Set(grow(arr, i))
+			if err := p.decodeArray(arr.Index(i)); err != nil {
+				return err
+			}
+			i++
+		default:
+			arr.Set(grow(arr, i))
+			// Doing this check saves ~12 allocations per op
+			if arr.Type().Elem().Kind() == reflect.Interface {
+				val, err := p.current().AsValue(arr.Type().Elem())
+				if err != nil {
+					return err
+				}
+				arr.Index(i).Set(val)
+			} else {
+				if err := p.current().SetValueOf(arr.Index(i)); err != nil {
+					return err
+				}
+			}
+			i++
+		}
+	}
 	return nil
 }
 
@@ -205,17 +370,22 @@ func getElemOfValue(vo reflect.Value) reflect.Value {
 }
 
 func (p *parser) parseMap(valueType reflect.Type) (reflect.Value, error) {
+	var (
+		val   = reflect.New(valueType).Elem()
+		field reflect.Value
+		err   error
+	)
 	vmap := reflect.MakeMap(reflect.MapOf(token.ReflectTypeString, valueType))
 	for p.next() {
 		if p.current().Type == token.ClosingCurly {
 			p.next()
 			break
 		}
-		field, err := p.parseField()
+		field, err = p.parseField()
 		if err != nil {
 			return vmap, err
 		}
-		val, err := p.parse(reflect.New(valueType).Elem())
+		val, err = p.parse(val)
 		if err != nil {
 			return vmap, err
 		}
