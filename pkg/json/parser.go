@@ -166,9 +166,6 @@ func (p *parser) decodeArray(arr reflect.Value) error {
 		case token.Comma:
 			continue // skip commas
 		case token.ClosingBrace:
-			if arr.Len() == i {
-				return nil
-			}
 			arr.Set(arr.Slice(0, i))
 			return nil
 		case token.OpenCurly:
@@ -178,9 +175,6 @@ func (p *parser) decodeArray(arr reflect.Value) error {
 			}
 			i++
 			if p.current().Type == token.ClosingBrace {
-				if arr.Len() == i {
-					return nil
-				}
 				arr.Set(arr.Slice(0, i))
 				return nil
 			}
