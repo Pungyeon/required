@@ -10,11 +10,15 @@ import (
 	"github.com/Pungyeon/required/pkg/token"
 )
 
-func Parse(l *lexer.Lexer, v interface{}) error {
-	return Decode(l, v)
-}
+/* TODO:
+- [ ] Map.IsNil() || MakeMap, instead of always overwriting
+- [ ] Could indexes instead of subslices cost less in tokens? Or maybe even always use l.value?
+- [ ] Try to use `go test -c` and then cat the different results to see the different allocations
+	- [x] Use set field instead of parse field for setting map key
+- [ ] Implement json.Unmarshaler interface check
+*/
 
-func Decode(l *lexer.Lexer, v interface{}) error {
+func Parse(l *lexer.Lexer, v interface{}) error {
 	val := getReflectValue(v)
 	if val.Kind() == reflect.Interface {
 		obj, err := (&parser{lexer: l}).parse(val)
@@ -77,6 +81,15 @@ func (p *parser) decodeField(parent reflect.Value, index int) error {
 					val.Set(vo)
 					return nil
 				}
+				//fmt.Println(val.Type())
+				if val.Kind() == reflect.Interface {
+					elem, err := p.parseMap(val.Type())
+					if err != nil {
+						return err
+					}
+					val.Set(elem)
+					return nil
+				}
 				elem, err := p.parseMap(val.Type().Elem())
 				if err != nil {
 					return err
@@ -102,6 +115,11 @@ func (p *parser) decodeField(parent reflect.Value, index int) error {
 	return nil
 }
 
+func requiredOrNil(val reflect.Value) required.Required {
+	req, _ := val.Interface().(required.Required)
+	return req
+}
+
 func (p *parser) decodeObject(val reflect.Value) error {
 	tags, err := structtag.FromValue(val)
 	if err != nil {
@@ -114,9 +132,8 @@ func (p *parser) decodeObject(val reflect.Value) error {
 				return err
 			}
 
-			// TODO : This is currently 10+ allocations per op :/
-			if req, ok := val.Field(tag.FieldIndex).Interface().(required.Required); ok {
-				if err := req.IsValueValid(); err != nil {
+			if tags[structtag.RequiredInterfaceKey].Required {
+				if err := val.Field(tag.FieldIndex).Interface().(required.Required).IsValueValid(); err != nil {
 					return err
 				}
 			}
@@ -142,13 +159,16 @@ func grow(arr reflect.Value, i int) reflect.Value {
 
 func (p *parser) decodeArray(arr reflect.Value) error {
 	arr.Set(reflect.MakeSlice(arr.Type(), 3, 3))
-	//val := reflect.New(arr.Type().Elem()).Elem()
+
 	var i int
 	for p.next() {
 		switch p.current().Type {
 		case token.Comma:
 			continue // skip commas
 		case token.ClosingBrace:
+			if arr.Len() == i {
+				return nil
+			}
 			arr.Set(arr.Slice(0, i))
 			return nil
 		case token.OpenCurly:
@@ -158,6 +178,9 @@ func (p *parser) decodeArray(arr reflect.Value) error {
 			}
 			i++
 			if p.current().Type == token.ClosingBrace {
+				if arr.Len() == i {
+					return nil
+				}
 				arr.Set(arr.Slice(0, i))
 				return nil
 			}
@@ -372,16 +395,16 @@ func getElemOfValue(vo reflect.Value) reflect.Value {
 func (p *parser) parseMap(valueType reflect.Type) (reflect.Value, error) {
 	var (
 		val   = reflect.New(valueType).Elem()
-		field reflect.Value
+		field = reflect.New(token.ReflectTypeString).Elem()
+		vmap  = reflect.MakeMap(reflect.MapOf(token.ReflectTypeString, valueType))
 		err   error
 	)
-	vmap := reflect.MakeMap(reflect.MapOf(token.ReflectTypeString, valueType))
 	for p.next() {
 		if p.current().Type == token.ClosingCurly {
 			p.next()
 			break
 		}
-		field, err = p.parseField()
+		err = p.setField(field)
 		if err != nil {
 			return vmap, err
 		}
@@ -394,13 +417,11 @@ func (p *parser) parseMap(valueType reflect.Type) (reflect.Value, error) {
 	return vmap, nil
 }
 
-func (p *parser) parseField() (reflect.Value, error) {
+func (p *parser) setField(val reflect.Value) error {
 	for p.next() {
 		if p.current().Type == token.Colon {
-			val := reflect.New(token.ReflectTypeString).Elem()
-			val.SetString(p.previous().ToString())
-			return val, nil
+			return p.previous().SetValueOf(val)
 		}
 	}
-	return reflect.New(token.ReflectTypeString).Elem(), errors.New("could not parse field")
+	return errors.New("could not parse field")
 }

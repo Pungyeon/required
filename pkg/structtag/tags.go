@@ -2,8 +2,11 @@ package structtag
 
 import (
 	"reflect"
+
+	"github.com/Pungyeon/required/pkg/required"
 )
 
+var RequiredInterfaceKey = "__IRQ__"
 var cache = map[reflect.Type]Tags{}
 
 type Tags map[string]Tag
@@ -25,18 +28,29 @@ func (tags Tags) CheckRequired() error {
 	return nil
 }
 
+func (tags Tags) Reset() {
+	for _, tag := range tags {
+		tag.IsSet = false
+	}
+}
+
 func FromValue(vo reflect.Value) (Tags, error) {
 	if vo.Kind() != reflect.Struct {
 		return map[string]Tag{}, nil
 	}
 
 	// TODO : @pungyeon - This is currently not thread safe. A mutex lock or channel is therefore needed, to ensure no race conditions are met. The reason for this cache implementation, is for general performance. This accounts for a lot of allocations, and since this is static on compilation, we can guarantee that this will never change. Therefore, the cache is a good place to start.
-	// TODO : @pungyeon - On further thought this breaks functionality completely :|!
 	if tags, ok := cache[vo.Type()]; ok {
+		tags.Reset()
 		return tags, nil
 	}
 
 	tags := Tags(make(map[string]Tag))
+	_, req := vo.Interface().(required.Required)
+	tags[RequiredInterfaceKey] = Tag{
+		FieldIndex: -1,
+		Required:   req,
+	}
 	for i := 0; i < vo.NumField(); i++ {
 		f := vo.Type().Field(i)
 		jsonTag, ok := f.Tag.Lookup("json")

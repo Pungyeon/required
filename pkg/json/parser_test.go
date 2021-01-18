@@ -77,23 +77,23 @@ func TestParserSimple(t *testing.T) {
 	}
 }
 
-func TestParserOptimised(t *testing.T) {
-	var d Ding
-	if err := Decode(LexString(t, sample), &d); err != nil {
+func TestParseSample(t *testing.T) {
+	var ding Ding
+	if err := Parse(LexString(t, sample), &ding); err != nil {
 		t.Fatal(err)
 	}
-
-	if d.Ding != 1 ||
-		d.Object == nil ||
-		d.Object.Name != "lasse" ||
-		len(d.Array) != 3 || d.Array[0] != 1 ||
-		len(d.MultiDimension[0]) != 3 || d.MultiDimension[1][2] != 6 ||
-		len(d.ObjectArray) != 2 || d.ObjectArray[0].Name != "lasse" ||
-		d.Float != 3.2 ||
-		d.MapObject["lumber"] != 13 {
-		t.Fatal(d)
+	if !(ding.Ding == 1 &&
+		ding.Dong == "hello" &&
+		ding.Boolean == true &&
+		ding.Object.Name == "lasse" &&
+		ding.Array[2] == 3 &&
+		ding.StringSlice[2] == "3" &&
+		ding.MultiDimension[1][2] == 6 &&
+		ding.ObjectArray[1].Name == "basse" &&
+		ding.MapObject["lumber"] == 13 &&
+		ding.Float == 3.2) {
+		t.Fatal(ding)
 	}
-
 }
 
 func TestParsePrimitive(t *testing.T) {
@@ -497,3 +497,31 @@ func BenchmarkPkgUnmarshal(b *testing.B) {
 		}
 	}
 }
+
+type InterfaceType struct {
+	Value interface{}
+}
+
+var interfaceSample = []byte(`{
+	"value": {
+		"float": 3.2	
+	}
+}`)
+
+//func BenchmarkInterfaceUnmarshalStd(b *testing.B) {
+//	for i := 0; i < b.N; i++ {
+//		var ding map[string]int
+//		if err := json.Unmarshal([]byte(`{ "one": 1, "two": 2, "three": 3 }`), &ding); err != nil {
+//			b.Fatal(err)
+//		}
+//	}
+//}
+//
+//func BenchmarkInterfaceUnmarshalPkg(b *testing.B) {
+//	for i := 0; i < b.N; i++ {
+//		var ding map[string]int
+//		if err := Unmarshal([]byte(`{ "one": 1, "two": 2, "three": 3 }`), &ding); err != nil {
+//			b.Fatal(err)
+//		}
+//	}
+//}
