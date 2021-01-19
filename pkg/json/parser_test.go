@@ -3,8 +3,10 @@ package json
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/Pungyeon/required/pkg/lexer"
 	"github.com/Pungyeon/required/pkg/structtag"
@@ -498,15 +500,23 @@ func BenchmarkPkgUnmarshal(b *testing.B) {
 	}
 }
 
-type InterfaceType struct {
-	Value interface{}
+type DateType struct {
+	Value time.Time
 }
 
-var interfaceSample = []byte(`{
-	"value": {
-		"float": 3.2	
-	}
+var dateSample = []byte(`{
+	"value": "2010-08-12"	
 }`)
+
+func TestDate(t *testing.T) {
+
+	var d DateType
+	if err := Parse(lexer.NewLexer(dateSample), &d); err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Println(d.Value)
+}
 
 //func BenchmarkInterfaceUnmarshalStd(b *testing.B) {
 //	for i := 0; i < b.N; i++ {

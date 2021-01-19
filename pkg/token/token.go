@@ -69,6 +69,15 @@ var TokenTypes = map[byte]TokenType{
 	'.': FullStop,
 }
 
+var BraceOpposites = map[byte]byte{
+	'[': ']',
+	']': '[',
+	'(': ')',
+	')': '(',
+	'{': '}',
+	'}': '{',
+}
+
 type Token struct {
 	Value []byte
 	Type  TokenType

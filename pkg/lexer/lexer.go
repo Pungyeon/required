@@ -41,6 +41,60 @@ func (l *Lexer) Current() token.Token {
 	return l.current
 }
 
+func (l *Lexer) SkipValue() []byte {
+	l.skipWhitespace()
+
+	var (
+		stack   int
+		start   = l.index
+		opening byte
+	)
+
+	closing, ok := token.BraceOpposites[l.value()]
+	if !ok {
+		closing = ','
+	} else {
+		opening = l.value()
+	}
+
+	for l.next() {
+		if l.value() == opening {
+			stack++
+		}
+		if l.value() == closing {
+			if stack == 0 {
+				return l.input[start : l.index+1]
+			} else {
+				stack--
+			}
+		}
+	}
+
+	if l.input[l.index-1] == '}' {
+		return l.input[start : l.index-1]
+	}
+	if l.index == len(l.input) {
+		return l.input[start:l.index]
+	}
+	return l.input[start : l.index+1]
+}
+
+func (l *Lexer) skipWhitespace() {
+	for l.value() == ' ' {
+		if !l.next() {
+			return
+		}
+	}
+}
+
+func (l *Lexer) skipTo(b byte) {
+	for l.next() {
+		if l.value() == b {
+			return
+		}
+	}
+}
+
 var (
 	TRUE  = []byte("true")
 	FALSE = []byte("false")

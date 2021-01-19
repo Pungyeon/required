@@ -1,7 +1,9 @@
 package json
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 
 	"github.com/Pungyeon/required/pkg/lexer"
@@ -10,12 +12,9 @@ import (
 	"github.com/Pungyeon/required/pkg/token"
 )
 
-/* TODO:
-- [ ] Map.IsNil() || MakeMap, instead of always overwriting
-- [ ] Could indexes instead of subslices cost less in tokens? Or maybe even always use l.value?
-- [ ] Try to use `go test -c` and then cat the different results to see the different allocations
-	- [x] Use set field instead of parse field for setting map key
-- [ ] Implement json.Unmarshaler interface check
+/* TODO
+Backtrack on architecture:
+	- instead of parsing the type from the json, you should determine the type ahead of time based on the field type of the value. Of course, if it's an interface, you will have to parse the type... :shrug:
 */
 
 func Parse(l *lexer.Lexer, v interface{}) error {
@@ -115,11 +114,6 @@ func (p *parser) decodeField(parent reflect.Value, index int) error {
 	return nil
 }
 
-func requiredOrNil(val reflect.Value) required.Required {
-	req, _ := val.Interface().(required.Required)
-	return req
-}
-
 func (p *parser) decodeObject(val reflect.Value) error {
 	tags, err := structtag.FromValue(val)
 	if err != nil {
@@ -128,6 +122,15 @@ func (p *parser) decodeObject(val reflect.Value) error {
 	for p.next() {
 		if p.current().Type == token.Colon {
 			tag := tags[p.previous().ToString()]
+			if tags[structtag.UnmarshalInterfaceKey].Required {
+				fmt.Println("hell yeah!")
+				if err := val.Field(tag.FieldIndex).Interface().(json.Unmarshaler).UnmarshalJSON(p.lexer.SkipValue()); err != nil {
+					return err
+				}
+				// TODO : @pungyeon fix this shit
+				tags.Set(tag)
+				continue
+			}
 			if err := p.decodeField(val, tag.FieldIndex); err != nil {
 				return err
 			}
@@ -137,6 +140,7 @@ func (p *parser) decodeObject(val reflect.Value) error {
 					return err
 				}
 			}
+
 			tags.Set(tag)
 		}
 		if p.eof() || p.current().Type == token.ClosingCurly {
@@ -385,14 +389,44 @@ func getElemOfValue(vo reflect.Value) reflect.Value {
 	}
 	return vo
 }
+func (p *parser) decodeMap(vmap reflect.Value) error {
+	var (
+		val   = reflect.New(vmap.Type()).Elem()
+		field = reflect.New(token.ReflectTypeString).Elem()
+		err   error
+	)
+
+	if vmap.IsNil() {
+		vmap.Set(reflect.MakeMap(reflect.MapOf(token.ReflectTypeString, vmap.Type())))
+	}
+
+	for p.next() {
+		if p.current().Type == token.ClosingCurly {
+			p.next()
+			break
+		}
+		err = p.setField(field)
+		if err != nil {
+			return err
+		}
+		val, err = p.parse(val)
+		if err != nil {
+			return err
+		}
+		vmap.SetMapIndex(field, val)
+	}
+	return nil
+}
 
 func (p *parser) parseMap(valueType reflect.Type) (reflect.Value, error) {
 	var (
 		val   = reflect.New(valueType).Elem()
 		field = reflect.New(token.ReflectTypeString).Elem()
-		vmap  = reflect.MakeMap(reflect.MapOf(token.ReflectTypeString, valueType))
 		err   error
 	)
+
+	vmap := reflect.MakeMap(reflect.MapOf(token.ReflectTypeString, valueType))
+
 	for p.next() {
 		if p.current().Type == token.ClosingCurly {
 			p.next()

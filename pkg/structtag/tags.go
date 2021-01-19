@@ -1,12 +1,17 @@
 package structtag
 
 import (
+	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/Pungyeon/required/pkg/required"
 )
 
-var RequiredInterfaceKey = "__IRQ__"
+var (
+	RequiredInterfaceKey  = "__IRQ__"
+	UnmarshalInterfaceKey = "__IUM__"
+)
 var cache = map[reflect.Type]Tags{}
 
 type Tags map[string]Tag
@@ -46,10 +51,16 @@ func FromValue(vo reflect.Value) (Tags, error) {
 	}
 
 	tags := Tags(make(map[string]Tag))
-	_, req := vo.Interface().(required.Required)
+	_, ok := vo.Interface().(required.Required)
 	tags[RequiredInterfaceKey] = Tag{
 		FieldIndex: -1,
-		Required:   req,
+		Required:   ok,
+	}
+	_, ok = vo.Interface().(json.Unmarshaler)
+	fmt.Println("can marshal:", ok, vo.Type())
+	tags[UnmarshalInterfaceKey] = Tag{
+		FieldIndex: -1,
+		Required:   ok,
 	}
 	for i := 0; i < vo.NumField(); i++ {
 		f := vo.Type().Field(i)
