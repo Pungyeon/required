@@ -3,6 +3,7 @@ package lexer
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -28,7 +29,6 @@ func TestScanValue(t *testing.T) {
 	"float": 3.2
 }`))
 	lexer.skipTo(':')
-	lexer.next()
 	val := lexer.SkipValue()
 
 	if string(val) != `{
@@ -37,10 +37,8 @@ func TestScanValue(t *testing.T) {
 		t.Fatal(string(val))
 	}
 	lexer.skipTo(':')
-	lexer.next()
 
 	fmt.Println(string(lexer.input[lexer.index:]))
-	fmt.Println("here we are")
 
 	val = lexer.SkipValue()
 
@@ -49,6 +47,17 @@ func TestScanValue(t *testing.T) {
 		t.Fatal(err)
 	}
 	if floaty != 3.2 {
+		t.Fatal(string(val))
+	}
+
+	lexer = NewLexer([]byte(`{
+		"value": "2006-01-02T15:04:05"
+	}`))
+
+	lexer.skipTo(':')
+
+	val = lexer.SkipValue()
+	if strings.TrimSpace(string(val)) != "2006-01-02T15:04:05" {
 		t.Fatal(string(val))
 	}
 }

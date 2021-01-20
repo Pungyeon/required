@@ -3,10 +3,9 @@ package json
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"regexp"
+	"strconv"
 	"testing"
-	"time"
 
 	"github.com/Pungyeon/required/pkg/lexer"
 	"github.com/Pungyeon/required/pkg/structtag"
@@ -99,7 +98,7 @@ func TestParseSample(t *testing.T) {
 }
 
 func TestParsePrimitive(t *testing.T) {
-	var v int64
+	var v uint64
 	if err := Parse(LexString(t, `1`), &v); err != nil {
 		t.Fatal(err)
 	}
@@ -500,38 +499,37 @@ func BenchmarkPkgUnmarshal(b *testing.B) {
 	}
 }
 
-type DateType struct {
-	Value time.Time
+type IntString struct {
+	Value int
+}
+
+func (is *IntString) UnmarshalJSON(data []byte) error {
+	type Anon struct {
+		Value string
+	}
+	var v Anon
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	val, err := strconv.ParseInt(v.Value, 10, 64)
+	if err != nil {
+		return err
+	}
+	is.Value = int(val)
+	return nil
 }
 
 var dateSample = []byte(`{
-	"value": "2010-08-12"	
+	"value": "123"
 }`)
 
-func TestDate(t *testing.T) {
-
-	var d DateType
+func TestCustomMarshaler(t *testing.T) {
+	var d IntString
 	if err := Parse(lexer.NewLexer(dateSample), &d); err != nil {
 		t.Fatal(err)
 	}
 
-	fmt.Println(d.Value)
+	if d.Value != 123 {
+		t.Fatal(d.Value)
+	}
 }
-
-//func BenchmarkInterfaceUnmarshalStd(b *testing.B) {
-//	for i := 0; i < b.N; i++ {
-//		var ding map[string]int
-//		if err := json.Unmarshal([]byte(`{ "one": 1, "two": 2, "three": 3 }`), &ding); err != nil {
-//			b.Fatal(err)
-//		}
-//	}
-//}
-//
-//func BenchmarkInterfaceUnmarshalPkg(b *testing.B) {
-//	for i := 0; i < b.N; i++ {
-//		var ding map[string]int
-//		if err := Unmarshal([]byte(`{ "one": 1, "two": 2, "three": 3 }`), &ding); err != nil {
-//			b.Fatal(err)
-//		}
-//	}
-//}

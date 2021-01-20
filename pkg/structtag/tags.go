@@ -2,7 +2,6 @@ package structtag
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 
 	"github.com/Pungyeon/required/pkg/required"
@@ -12,6 +11,8 @@ var (
 	RequiredInterfaceKey  = "__IRQ__"
 	UnmarshalInterfaceKey = "__IUM__"
 )
+
+// TODO : @pungyeon - This is currently not thread safe. A mutex lock or channel is therefore needed, to ensure no race conditions are met. The reason for this cache implementation, is for general performance. This accounts for a lot of allocations, and since this is static on compilation, we can guarantee that this will never change. Therefore, the cache is a good place to start.
 var cache = map[reflect.Type]Tags{}
 
 type Tags map[string]Tag
@@ -40,28 +41,38 @@ func (tags Tags) Reset() {
 }
 
 func FromValue(vo reflect.Value) (Tags, error) {
-	if vo.Kind() != reflect.Struct {
-		return map[string]Tag{}, nil
-	}
-
-	// TODO : @pungyeon - This is currently not thread safe. A mutex lock or channel is therefore needed, to ensure no race conditions are met. The reason for this cache implementation, is for general performance. This accounts for a lot of allocations, and since this is static on compilation, we can guarantee that this will never change. Therefore, the cache is a good place to start.
 	if tags, ok := cache[vo.Type()]; ok {
 		tags.Reset()
 		return tags, nil
 	}
 
 	tags := Tags(make(map[string]Tag))
-	_, ok := vo.Interface().(required.Required)
+
+	var ok bool
+	if vo.CanAddr() {
+		_, ok = vo.Addr().Interface().(required.Required)
+	} else {
+		_, ok = vo.Interface().(required.Required)
+	}
 	tags[RequiredInterfaceKey] = Tag{
 		FieldIndex: -1,
 		Required:   ok,
 	}
-	_, ok = vo.Interface().(json.Unmarshaler)
-	fmt.Println("can marshal:", ok, vo.Type())
+
+	if vo.CanAddr() {
+		_, ok = vo.Addr().Interface().(json.Unmarshaler)
+	} else {
+		_, ok = vo.Interface().(json.Unmarshaler)
+	}
 	tags[UnmarshalInterfaceKey] = Tag{
 		FieldIndex: -1,
 		Required:   ok,
 	}
+	if vo.Kind() != reflect.Struct {
+		cache[vo.Type()] = tags
+		return tags, nil
+	}
+
 	for i := 0; i < vo.NumField(); i++ {
 		f := vo.Type().Field(i)
 		jsonTag, ok := f.Tag.Lookup("json")

@@ -136,6 +136,8 @@ func (token Token) AsValue(vt reflect.Type) (reflect.Value, error) {
 
 func (token Token) SetValueOf(val reflect.Value) error {
 	switch token.Type {
+	case Null:
+		return nil // don't set anything
 	case String:
 		val.SetString(token.ToString())
 		return nil

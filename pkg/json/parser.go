@@ -5,17 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 
 	"github.com/Pungyeon/required/pkg/lexer"
 	"github.com/Pungyeon/required/pkg/required"
 	"github.com/Pungyeon/required/pkg/structtag"
 	"github.com/Pungyeon/required/pkg/token"
 )
-
-/* TODO
-Backtrack on architecture:
-	- instead of parsing the type from the json, you should determine the type ahead of time based on the field type of the value. Of course, if it's an interface, you will have to parse the type... :shrug:
-*/
 
 func Parse(l *lexer.Lexer, v interface{}) error {
 	val := getReflectValue(v)
@@ -31,116 +27,85 @@ func Parse(l *lexer.Lexer, v interface{}) error {
 }
 
 func (p *parser) decode(val reflect.Value) error {
-	for p.next() {
-		switch p.current().Type {
-		case token.OpenBrace:
-			return p.decodeArray(val)
-		case token.OpenCurly:
-			if val.Kind() == reflect.Map {
-				elem, err := p.parseMap(val.Type().Elem())
-				if err != nil {
-					return err
-				}
-				val.Set(elem)
-				return nil
-			}
-			return p.decodeObject(val)
-		case token.Null:
-			return nil
-		default:
-			if val.Kind() == reflect.Interface {
-				v, err := p.current().AsValue(val.Type())
-				if err != nil {
-					return err
-				}
-				val.Set(v)
-				return nil
-			}
-			return p.current().SetValueOf(val)
-		}
-	}
-	return nil
-}
-
-func (p *parser) decodeField(parent reflect.Value, index int) error {
-	val := parent.Field(index)
-
-	for p.next() {
-		switch p.current().Type {
-		case token.OpenBrace:
-			return p.decodeArray(val)
-		case token.OpenCurly:
-			if val.IsZero() {
-				//kind, _type := determineObjectType(val)
-				if val.Kind() == reflect.Ptr {
-					vo := getValueOfPointer(val)
-					if err := p.decodeObject(getElemOfValue(vo)); err != nil {
-						return err
-					}
-					val.Set(vo)
-					return nil
-				}
-				//fmt.Println(val.Type())
-				if val.Kind() == reflect.Interface {
-					elem, err := p.parseMap(val.Type())
-					if err != nil {
-						return err
-					}
-					val.Set(elem)
-					return nil
-				}
-				elem, err := p.parseMap(val.Type().Elem())
-				if err != nil {
-					return err
-				}
-				val.Set(elem)
-				return nil
-			}
-			return p.decodeObject(val)
-		case token.Null:
-			return nil
-		default:
-			if val.Kind() == reflect.Interface {
-				v, err := p.current().AsValue(val.Type())
-				if err != nil {
-					return err
-				}
-				val.Set(v)
-				return nil
-			}
-			return p.current().SetValueOf(val)
-		}
-	}
-	return nil
-}
-
-func (p *parser) decodeObject(val reflect.Value) error {
 	tags, err := structtag.FromValue(val)
 	if err != nil {
 		return err
 	}
+	if tags[structtag.UnmarshalInterfaceKey].Required {
+		if val.CanAddr() {
+			str := p.lexer.SkipValue()
+			return val.Addr().Interface().(json.Unmarshaler).UnmarshalJSON(str)
+		} else {
+			return val.Interface().(json.Unmarshaler).UnmarshalJSON(p.lexer.SkipValue())
+		}
+	}
+
+	if err := p._decode(val, tags); err != nil {
+		return err
+	}
+
+	if tags[structtag.RequiredInterfaceKey].Required {
+		if val.CanAddr() {
+			return val.Addr().Interface().(required.Required).IsValueValid()
+		} else {
+			return val.Interface().(required.Required).IsValueValid()
+		}
+	}
+	return nil
+}
+
+func (p *parser) _decode(val reflect.Value, tags structtag.Tags) error {
+	if val.Kind() == reflect.Interface {
+		obj, err := p.parse(val)
+		if err != nil {
+			return err
+		}
+		val.Set(obj)
+		return nil
+	}
+	p.next()
+
+	if p.current().Type == token.Null {
+		return nil
+	}
+
+	switch val.Kind() {
+	case reflect.Ptr:
+		vo := getValueOfPointer(val)
+		if err := p._decode(getElemOfValue(vo), tags); err != nil {
+			return err
+		}
+		val.Set(vo)
+		return nil
+	case reflect.Array, reflect.Slice:
+		return p.decodeArray(val)
+	case reflect.Map:
+		return p.decodeMap(val)
+	case reflect.Struct:
+		return p.decodeObject(val, tags)
+	case reflect.Int, reflect.Float32, reflect.Float64,
+		reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.String, reflect.Bool: // what about uints?
+		return p.current().SetValueOf(val)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		n, err := strconv.ParseInt(p.current().ToString(), 10, 64)
+		if err != nil {
+			return err
+		}
+		val.SetUint(uint64(n))
+		return err
+	}
+	fmt.Printf("unsupported type: %s\n", val.Type()) // TODO : remove this
+	return nil
+}
+
+func (p *parser) decodeObject(val reflect.Value, tags structtag.Tags) error {
 	for p.next() {
 		if p.current().Type == token.Colon {
 			tag := tags[p.previous().ToString()]
-			if tags[structtag.UnmarshalInterfaceKey].Required {
-				fmt.Println("hell yeah!")
-				if err := val.Field(tag.FieldIndex).Interface().(json.Unmarshaler).UnmarshalJSON(p.lexer.SkipValue()); err != nil {
-					return err
-				}
-				// TODO : @pungyeon fix this shit
-				tags.Set(tag)
-				continue
-			}
-			if err := p.decodeField(val, tag.FieldIndex); err != nil {
+			if err := p.decode(val.Field(tag.FieldIndex)); err != nil {
 				return err
 			}
-
-			if tags[structtag.RequiredInterfaceKey].Required {
-				if err := val.Field(tag.FieldIndex).Interface().(required.Required).IsValueValid(); err != nil {
-					return err
-				}
-			}
-
 			tags.Set(tag)
 		}
 		if p.eof() || p.current().Type == token.ClosingCurly {
@@ -148,7 +113,6 @@ func (p *parser) decodeObject(val reflect.Value) error {
 			break
 		}
 	}
-
 	return tags.CheckRequired()
 }
 
@@ -163,6 +127,10 @@ func grow(arr reflect.Value, i int) reflect.Value {
 
 func (p *parser) decodeArray(arr reflect.Value) error {
 	arr.Set(reflect.MakeSlice(arr.Type(), 3, 3))
+	tags, err := structtag.FromValue(arr.Index(0))
+	if err != nil {
+		return err
+	}
 
 	var i int
 	for p.next() {
@@ -174,7 +142,7 @@ func (p *parser) decodeArray(arr reflect.Value) error {
 			return nil
 		case token.OpenCurly:
 			arr.Set(grow(arr, i))
-			if err := p.decodeObject(arr.Index(i)); err != nil {
+			if err := p.decodeObject(arr.Index(i), tags); err != nil {
 				return err
 			}
 			i++
@@ -391,13 +359,13 @@ func getElemOfValue(vo reflect.Value) reflect.Value {
 }
 func (p *parser) decodeMap(vmap reflect.Value) error {
 	var (
-		val   = reflect.New(vmap.Type()).Elem()
+		val   = reflect.New(vmap.Type().Elem()).Elem()
 		field = reflect.New(token.ReflectTypeString).Elem()
 		err   error
 	)
 
 	if vmap.IsNil() {
-		vmap.Set(reflect.MakeMap(reflect.MapOf(token.ReflectTypeString, vmap.Type())))
+		vmap.Set(reflect.MakeMap(reflect.MapOf(token.ReflectTypeString, vmap.Type().Elem())))
 	}
 
 	for p.next() {
