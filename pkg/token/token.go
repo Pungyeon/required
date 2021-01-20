@@ -22,7 +22,7 @@ var (
 	ReflectTypeBool      = reflect.TypeOf(true)
 )
 
-type TokenType string
+type TokenType int
 
 func (t TokenType) IsEnding() bool {
 	return t == ClosingBrace || t == ClosingCurly ||
@@ -30,23 +30,23 @@ func (t TokenType) IsEnding() bool {
 }
 
 const (
-	Unknown        TokenType = "UNKNOWN"
-	Integer        TokenType = "INTEGER"
-	Float          TokenType = "FLOAT"
-	String         TokenType = "STRING"
-	Null           TokenType = "NULL"
-	Key            TokenType = "KEY_TOKEN"
-	Colon          TokenType = ":"
-	Comma          TokenType = ","
-	WhiteSpace     TokenType = "WHITESPACE"
-	OpenBrace      TokenType = "["
-	ClosingBrace   TokenType = "]"
-	OpenBracket    TokenType = "("
-	ClosingBracket TokenType = ")"
-	OpenCurly      TokenType = "{"
-	ClosingCurly   TokenType = "}"
-	FullStop       TokenType = "."
-	Boolean        TokenType = "BOOLEAN"
+	Unknown TokenType = iota
+	Integer
+	Float
+	String
+	Null
+	Key
+	Colon
+	Comma
+	WhiteSpace
+	OpenBrace
+	ClosingBrace
+	OpenBracket
+	ClosingBracket
+	OpenCurly
+	ClosingCurly
+	FullStop
+	Boolean
 )
 
 var TokenTypes = map[byte]TokenType{
