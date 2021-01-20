@@ -21,11 +21,11 @@ func TestTagFormatting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := tags["name"]; !ok {
+	if _, ok := tags.Tags["name"]; !ok {
 		t.Fatal(`could not find "name" tag`)
 	}
 
-	dingDong, ok := tags["ding_dong"]
+	dingDong, ok := tags.Tags["ding_dong"]
 	if !ok {
 		t.Fatal(`could not find "ding_dong" tag`)
 	}
@@ -33,7 +33,7 @@ func TestTagFormatting(t *testing.T) {
 		t.Fatal("unexpected field_index for ding_dong:", dingDong.FieldIndex)
 	}
 
-	age, ok := tags["age"]
+	age, ok := tags.Tags["age"]
 	if !ok {
 		t.Fatal(`could not find "age" tag`)
 	}

@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
+	"strconv"
 	"testing"
 
 	"github.com/Pungyeon/required/pkg/lexer"
 	"github.com/Pungyeon/required/pkg/structtag"
-	"github.com/Pungyeon/required/pkg/token"
 )
 
 type TestObject struct {
@@ -52,12 +52,20 @@ var sample = `{
 		"float": 3.2
 	}`
 
-func LexString(t *testing.T, input string) token.Tokens {
-	tokens, err := lexer.Lex(input)
-	if err != nil {
+func LexString(t *testing.T, input string) *lexer.Lexer {
+	return lexer.NewLexer([]byte(input))
+}
+
+type PrivateFields struct {
+	ding string
+	dong TestObject
+}
+
+func TestPrivateFields(t *testing.T) {
+	var pf PrivateFields
+	if err := Parse(LexString(t, `{"ding": "dingeling", "dong": {"name": "lasse"}}`), &pf); err != nil {
 		t.Fatal(err)
 	}
-	return tokens
 }
 
 func TestParserSimple(t *testing.T) {
@@ -70,8 +78,27 @@ func TestParserSimple(t *testing.T) {
 	}
 }
 
+func TestParseSample(t *testing.T) {
+	var ding Ding
+	if err := Parse(LexString(t, sample), &ding); err != nil {
+		t.Fatal(err)
+	}
+	if !(ding.Ding == 1 &&
+		ding.Dong == "hello" &&
+		ding.Boolean == true &&
+		ding.Object.Name == "lasse" &&
+		ding.Array[2] == 3 &&
+		ding.StringSlice[2] == "3" &&
+		ding.MultiDimension[1][2] == 6 &&
+		ding.ObjectArray[1].Name == "basse" &&
+		ding.MapObject["lumber"] == 13 &&
+		ding.Float == 3.2) {
+		t.Fatal(ding)
+	}
+}
+
 func TestParsePrimitive(t *testing.T) {
-	var v int64
+	var v uint64
 	if err := Parse(LexString(t, `1`), &v); err != nil {
 		t.Fatal(err)
 	}
@@ -102,9 +129,9 @@ func TestParseArrayInStruct(t *testing.T) {
 
 func TestParseArray(t *testing.T) {
 	tokens := LexString(t, "[1, 2, 3, 4]")
-	if tokens.Join(";") != "[;1;,;2;,;3;,;4;]" {
-		t.Fatal("oh no", tokens.Join(";"))
-	}
+	//if tokens.Join(";") != "[;1;,;2;,;3;,;4;]" {
+	//	t.Fatal("oh no", tokens.Join(";"))
+	//}
 
 	var obj []int
 	if err := Parse(tokens, &obj); err != nil {
@@ -122,9 +149,9 @@ func TestParseArray(t *testing.T) {
 
 func TestParseFloatArray(t *testing.T) {
 	tokens := LexString(t, "[1.1, 2.2, 3.3, 4.4]")
-	if tokens.Join(";") != "[;1.1;,;2.2;,;3.3;,;4.4;]" {
-		t.Fatal("oh no", tokens.Join(";"))
-	}
+	//if tokens.Join(";") != "[;1.1;,;2.2;,;3.3;,;4.4;]" {
+	//	t.Fatal("oh no", tokens.Join(";"))
+	//}
 
 	var obj []float64
 	if err := Parse(tokens, &obj); err != nil {
@@ -145,9 +172,9 @@ func TestParseMultiArray(t *testing.T) {
 	[1, 2, 3],
 	[4, 5, 6]
 ]`)
-	if tokens.Join(";") != "[;[;1;,;2;,;3;];,;[;4;,;5;,;6;];]" {
-		t.Fatal("oh no", tokens.Join(";"))
-	}
+	//if tokens.Join(";") != "[;[;1;,;2;,;3;];,;[;4;,;5;,;6;];]" {
+	//	t.Fatal("oh no", tokens.Join(";"))
+	//}
 
 	var obj [][]int
 	if err := Parse(tokens, &obj); err != nil {
@@ -155,7 +182,7 @@ func TestParseMultiArray(t *testing.T) {
 	}
 
 	if len(obj) != 2 {
-		t.Fatal("length of object:", len(obj))
+		t.Fatal("length of object:", len(obj), obj)
 	}
 
 	if len(obj[0]) != 3 {
@@ -172,9 +199,9 @@ func TestParseMultiStringArray(t *testing.T) {
 	["1", "2", "3"],
 	["4", "5", "6"]
 ]`)
-	if tokens.Join(";") != "[;[;1;,;2;,;3;];,;[;4;,;5;,;6;];]" {
-		t.Fatal("oh no", tokens.Join(";"))
-	}
+	//if tokens.Join(";") != "[;[;1;,;2;,;3;];,;[;4;,;5;,;6;];]" {
+	//	t.Fatal("oh no", tokens.Join(";"))
+	//}
 
 	var obj [][]string
 	if err := Parse(tokens, &obj); err != nil {
@@ -203,9 +230,9 @@ func TestParseObjectArray(t *testing.T) {
 		"name": "basse"
 	}
 ]`)
-	if tokens.Join(";") != "[;{;name;:;lasse;};,;{;name;:;basse;};]" {
-		t.Fatal("oh no", tokens.Join(";"))
-	}
+	//if tokens.Join(";") != "[;{;name;:;lasse;};,;{;name;:;basse;};]" {
+	//	t.Fatal("oh no", tokens.Join(";"))
+	//}
 
 	var obj []TestObject
 	if err := Parse(tokens, &obj); err != nil {
@@ -213,7 +240,7 @@ func TestParseObjectArray(t *testing.T) {
 	}
 
 	if len(obj) != 2 {
-		t.Fatal("length of object:", len(obj))
+		t.Fatal("length of object:", len(obj), obj)
 	}
 
 	if obj[1].Name != "basse" {
@@ -251,8 +278,8 @@ func TestMapStringStringUnmarshal(t *testing.T) {
 	}
 }
 
-func testParse(t *testing.T, tokens token.Tokens, v interface{}) {
-	if err := Parse(tokens, v); err != nil {
+func testParse(t *testing.T, lexer *lexer.Lexer, v interface{}) {
+	if err := Parse(lexer, v); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -298,17 +325,17 @@ func TestParseAsReflectValue(t *testing.T) {
 			testParse(t, LexString(t, `{"name": "lasse"}`), &v)
 			return v.Name == "lasse"
 		}},
-		{name: "array", check: func() bool {
+		{name: "string_array", check: func() bool {
 			var v []string
 			testParse(t, LexString(t, `["name", "lasse"]`), &v)
 			return v[1] == "lasse"
 		}},
-		{name: "array", check: func() bool {
+		{name: "interface_string", check: func() bool {
 			var v interface{}
 			testParse(t, LexString(t, `"lasse"`), &v)
 			return v.(string) == "lasse"
 		}},
-		{name: "array", check: func() bool {
+		{name: "interface_object", check: func() bool {
 			var v interface{}
 			testParse(t, LexString(t, `{"name": "lasse"}`), &v)
 			return v.(map[string]interface{})["name"] == "lasse"
@@ -469,5 +496,40 @@ func BenchmarkPkgUnmarshal(b *testing.B) {
 		if err := Unmarshal([]byte(sample), &ding); err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+type IntString struct {
+	Value int
+}
+
+func (is *IntString) UnmarshalJSON(data []byte) error {
+	type Anon struct {
+		Value string
+	}
+	var v Anon
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	val, err := strconv.ParseInt(v.Value, 10, 64)
+	if err != nil {
+		return err
+	}
+	is.Value = int(val)
+	return nil
+}
+
+var dateSample = []byte(`{
+	"value": "123"
+}`)
+
+func TestCustomMarshaler(t *testing.T) {
+	var d IntString
+	if err := Parse(lexer.NewLexer(dateSample), &d); err != nil {
+		t.Fatal(err)
+	}
+
+	if d.Value != 123 {
+		t.Fatal(d.Value)
 	}
 }

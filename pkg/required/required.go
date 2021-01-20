@@ -10,7 +10,7 @@ type Nullable struct {
 	value interface{}
 }
 
-// Required is an interface which will enable the require.Unmarshal parser,
+// Required is an interface which will enable the require.UnmarshalInterface parser,
 // to check whether a given object / interface has a valid contained value.
 type Required interface {
 	IsValueValid() error
@@ -27,7 +27,7 @@ func ReturnIfError(errs ...error) error {
 	return nil
 }
 
-// Unmarshal is a wrapping function of the json.Unmarshal function
+// Unmarshal is a wrapping function of the json.UnmarshalInterface function
 func Unmarshal(data []byte, v interface{}) error {
 	return ReturnIfError(
 		json.Unmarshal(data, v),

@@ -7,7 +7,7 @@ import (
 
 var (
 	ErrCannotUnmarshal  = fmt.Errorf("json: cannot unmarshal given value")
-	ErrEmpty            = errors.New("type of required.Required not allowed to be empty")
+	ErrEmpty            = errors.New("type of required.RequiredInterface not allowed to be empty")
 	ErrEmptyBool        = errors.New("type of required.Bool not allowed to be empty")
 	ErrEmptyBoolSlice   = errors.New("type of required.BoolSlice not allowed to be empty")
 	ErrEmptyByteSlice   = errors.New("type of required.ByteSlice not allowed to be empty")

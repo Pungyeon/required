@@ -16,7 +16,7 @@ func ReturnIfError(errs ...error) error {
 	return nil
 }
 
-// Unmarshal is a wrapping function of the json.Unmarshal function
+// Unmarshal is a wrapping function of the json.UnmarshalInterface function
 func Unmarshal(data []byte, v interface{}) error {
 	return ReturnIfError(
 		json.Unmarshal(data, v),
