@@ -533,3 +533,31 @@ func TestCustomMarshaler(t *testing.T) {
 		t.Fatal(d.Value)
 	}
 }
+
+func TestMapArray(t *testing.T) {
+	type MA struct {
+		Array []map[string]int
+	}
+
+	var ma MA
+	if err := Parse(LexString(t, `{ "array": [{ "name": 3 }]`), &ma); err != nil {
+		t.Fatal(err)
+	}
+	if ma.Array[0]["name"] != 3 {
+		t.Fatal(ma)
+	}
+}
+
+func TestMapArrayInterface(t *testing.T) {
+	type MA struct {
+		Array []map[string]int
+	}
+
+	var ma interface{}
+	if err := Parse(LexString(t, `{ "array": [{ "name": 3 }]`), &ma); err != nil {
+		t.Fatal(err)
+	}
+	if ma.(map[string]interface{})["array"].([]interface{})[0].(map[string]interface{})["name"].(int) != 3 {
+		t.Fatal(ma)
+	}
+}

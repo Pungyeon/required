@@ -142,8 +142,14 @@ func (p *parser) decodeArray(arr reflect.Value) error {
 			return nil
 		case token.OpenCurly:
 			arr.Set(grow(arr, i))
-			if err := p.decodeObject(arr.Index(i), tags); err != nil {
-				return err
+			if arr.Index(i).Kind() == reflect.Map {
+				if err := p.decodeMap(arr.Index(i)); err != nil {
+					return err
+				}
+			} else {
+				if err := p.decodeObject(arr.Index(i), tags); err != nil {
+					return err
+				}
 			}
 			i++
 			if p.current().Type == token.ClosingBrace {
@@ -260,8 +266,9 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 		case token.ClosingBrace:
 			return arr.Slice(0, i), nil
 		case token.OpenCurly:
-			if err := p.parseStructure(val); err != nil {
-				return val, nil
+			val, err := p.parseMap(val.Type())
+			if err != nil {
+				return val, err
 			}
 			arr = insertAt(arr, i, val)
 			i++
@@ -332,12 +339,6 @@ func (p *parser) parseStructure(vo reflect.Value) error {
 			}
 			tags.Set(tag) // TODO : Make sure to not set this, if the token is a NullToken
 			obj.Set(val)
-			// TODO : This is currently 10+ allocations per op :/
-			if req, ok := obj.Interface().(required.Required); ok {
-				if err := req.IsValueValid(); err != nil {
-					return err
-				}
-			}
 		}
 		if p.eof() || p.current().Type == token.ClosingCurly {
 			p.next()
