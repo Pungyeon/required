@@ -8,7 +8,7 @@ import (
 type TagTest struct {
 	Name     string
 	DingDong string
-	Age      int64 `json:"age,required"`
+	Age      int64 `json:"age,RequiredInterface"`
 }
 
 func TestTagFormatting(t *testing.T) {

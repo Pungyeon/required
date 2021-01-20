@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	errRequiredField = errors.New("required field missing")
+	errRequiredField = errors.New("RequiredInterface field missing")
 )
 
 func IsRequiredErr(err error) bool {

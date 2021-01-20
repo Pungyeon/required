@@ -31,7 +31,7 @@ func (p *parser) decode(val reflect.Value) error {
 	if err != nil {
 		return err
 	}
-	if tags[structtag.UnmarshalInterfaceKey].Required {
+	if tags.UnmarshalInterface {
 		if val.CanAddr() {
 			str := p.lexer.SkipValue()
 			return val.Addr().Interface().(json.Unmarshaler).UnmarshalJSON(str)
@@ -44,7 +44,7 @@ func (p *parser) decode(val reflect.Value) error {
 		return err
 	}
 
-	if tags[structtag.RequiredInterfaceKey].Required {
+	if tags.RequiredInterface {
 		if val.CanAddr() {
 			return val.Addr().Interface().(required.Required).IsValueValid()
 		} else {
@@ -102,7 +102,7 @@ func (p *parser) _decode(val reflect.Value, tags structtag.Tags) error {
 func (p *parser) decodeObject(val reflect.Value, tags structtag.Tags) error {
 	for p.next() {
 		if p.current().Type == token.Colon {
-			tag := tags[p.previous().ToString()]
+			tag := tags.Tags[p.previous().ToString()]
 			if err := p.decode(val.Field(tag.FieldIndex)); err != nil {
 				return err
 			}
@@ -321,7 +321,7 @@ func (p *parser) parseStructure(vo reflect.Value) error {
 	}
 	for p.next() {
 		if p.current().Type == token.Colon {
-			tag := tags[p.previous().ToString()]
+			tag := tags.Tags[p.previous().ToString()]
 			obj := vo.Field(tag.FieldIndex)
 			if !obj.CanSet() { // Private values may not be set.
 				continue
