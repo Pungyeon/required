@@ -47,26 +47,28 @@ func FromValue(vo reflect.Value) (Tags, error) {
 	}
 
 	tags := Tags(make(map[string]Tag))
+	if vo.CanSet() {
 
-	var ok bool
-	if vo.CanAddr() {
-		_, ok = vo.Addr().Interface().(required.Required)
-	} else {
-		_, ok = vo.Interface().(required.Required)
-	}
-	tags[RequiredInterfaceKey] = Tag{
-		FieldIndex: -1,
-		Required:   ok,
-	}
+		var ok bool
+		if vo.CanAddr() {
+			_, ok = vo.Addr().Interface().(required.Required)
+		} else {
+			_, ok = vo.Interface().(required.Required)
+		}
+		tags[RequiredInterfaceKey] = Tag{
+			FieldIndex: -1,
+			Required:   ok,
+		}
 
-	if vo.CanAddr() {
-		_, ok = vo.Addr().Interface().(json.Unmarshaler)
-	} else {
-		_, ok = vo.Interface().(json.Unmarshaler)
-	}
-	tags[UnmarshalInterfaceKey] = Tag{
-		FieldIndex: -1,
-		Required:   ok,
+		if vo.CanAddr() {
+			_, ok = vo.Addr().Interface().(json.Unmarshaler)
+		} else {
+			_, ok = vo.Interface().(json.Unmarshaler)
+		}
+		tags[UnmarshalInterfaceKey] = Tag{
+			FieldIndex: -1,
+			Required:   ok,
+		}
 	}
 	if vo.Kind() != reflect.Struct {
 		cache[vo.Type()] = tags

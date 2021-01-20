@@ -58,12 +58,12 @@ func LexString(t *testing.T, input string) *lexer.Lexer {
 
 type PrivateFields struct {
 	ding string
+	dong TestObject
 }
 
 func TestPrivateFields(t *testing.T) {
-	t.Skip()
 	var pf PrivateFields
-	if err := Parse(LexString(t, `{"ding": "dingeling"}`), &pf); err != nil {
+	if err := Parse(LexString(t, `{"ding": "dingeling", "dong": {"name": "lasse"}}`), &pf); err != nil {
 		t.Fatal(err)
 	}
 }
