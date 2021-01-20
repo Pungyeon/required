@@ -210,7 +210,7 @@ func (token Token) IsEnding() bool {
 }
 
 func (token Token) String() string {
-	return string(token.Value) + ": " + string(token.Type)
+	return fmt.Sprintf("%s: %d", token.Value, token.Type)
 }
 
 func (token Token) ToString() string {
