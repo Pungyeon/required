@@ -49,25 +49,31 @@ const (
 	Boolean
 )
 
-var TokenTypes = map[byte]TokenType{
-	// "UNKNOWN":    Unknown,
-	// "BOOLEAN":    Boolean,
-	// "INTEGER":    Integer,
-	// "FLOAT":      Float,
-	// "STRING":     String,
-	// "NULL":       Null,
-	// "KEY_TOKEN":  Key,
-	// "WHITESPACE": WhiteSpace,
-	':': Colon,
-	',': Comma,
-	'[': OpenBrace,
-	']': ClosingBrace,
-	'(': OpenBracket,
-	')': ClosingBracket,
-	'{': OpenCurly,
-	'}': ClosingCurly,
-	'.': FullStop,
+func init() {
+	TokenTypes[':'] = Colon
+	TokenTypes[','] = Comma
+	TokenTypes['['] = OpenBrace
+	TokenTypes[']'] = ClosingBrace
+	TokenTypes['('] = OpenBracket
+	TokenTypes[')'] = ClosingBracket
+	TokenTypes['{'] = OpenCurly
+	TokenTypes['}'] = ClosingCurly
+	TokenTypes['.'] = FullStop
 }
+
+var TokenTypes = make([]TokenType, 126)
+
+//var TokenTypes = map[byte]TokenType{
+//	':': Colon,
+//	',': Comma,
+//	'[': OpenBrace,
+//	']': ClosingBrace,
+//	'(': OpenBracket,
+//	')': ClosingBracket,
+//	'{': OpenCurly,
+//	'}': ClosingCurly,
+//	'.': FullStop,
+//}
 
 var BraceOpposites = map[byte]byte{
 	'[': ']',
@@ -84,17 +90,9 @@ type Token struct {
 }
 
 func NewToken(b []byte, i int) Token {
-	t, ok := TokenTypes[b[i]]
-	if !ok {
-
-		return Token{
-			Value: b[i : i+1], // should we even allocate here?
-			Type:  Unknown,
-		}
-	}
 	return Token{
-		Value: b[i : i+1],
-		Type:  t,
+		Value: b[i : i+1], // should we even allocate here?
+		Type:  TokenTypes[b[i]],
 	}
 }
 
