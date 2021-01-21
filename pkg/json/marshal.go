@@ -90,6 +90,8 @@ const (
 //	return nil
 //}
 
+var scratch [64]byte
+
 func _marshal(val reflect.Value, buf *bytes.Buffer) error {
 	switch val.Kind() {
 	case reflect.Struct:
@@ -97,10 +99,19 @@ func _marshal(val reflect.Value, buf *bytes.Buffer) error {
 	case reflect.Array, reflect.Slice:
 		return marshalArray(val, buf)
 	case reflect.Float64, reflect.Float32:
-		buf.WriteString(strconv.FormatFloat(val.Float(), 'f', -1, 64))
+		// The standard library uses a []byte array and AppendFloat
+		// see encode.go:573 -> func (bits floatEncoder) encode(e *encodeState, v reflect.Value, opts encOpts)
+		// I'm not exactly sure why this saves an allocation, but it does :shrug:
+		f := val.Float()
+		b := scratch[:0]
+		strconv.AppendFloat(b, f, 'f', -1, 64)
+		buf.Write(b)
 		return nil
-	case reflect.Int: // TODO : Add other Integer kinds
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		buf.WriteString(strconv.FormatInt(val.Int(), 10))
+		return nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		buf.WriteString(strconv.FormatUint(val.Uint(), 10))
 		return nil
 	case reflect.Bool:
 		if val.Bool() {
