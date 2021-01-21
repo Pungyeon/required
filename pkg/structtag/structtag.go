@@ -5,11 +5,12 @@ import (
 )
 
 type Tag struct {
-	FieldIndex  int
-	FieldName   string
-	Required    bool
-	OmitIfEmpty bool
-	IsSet       bool
+	FieldIndex        int
+	FieldName         string
+	Required          bool
+	OmitIfEmpty       bool
+	IsSet             bool
+	RequiredInterface bool
 }
 
 func (t *Tag) addValue(value string) error {
