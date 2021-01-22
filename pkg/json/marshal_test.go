@@ -2,6 +2,7 @@ package json
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 )
 
@@ -15,10 +16,37 @@ type MarshalObj struct {
 	Struct    SmallObj
 	Pointer   *SmallObj
 	Interface interface{}
+
+	// unsupported types
+	channel  chan string
+	function func()
+	complex  complex128
+	uptr     uintptr
 }
 
 type SmallObj struct {
 	Name string
+}
+
+func TestMarshalUnsupportedType(t *testing.T) {
+	var cmplx complex128
+	var uptr uintptr
+	tt := []struct {
+		Name  string
+		Value interface{}
+		Error error
+	}{
+		{"channel", make(chan bool), ErrUnsupportedType},
+		{"function", func() error { return nil }, ErrUnsupportedType},
+		{"complex", cmplx, ErrUnsupportedType},
+		{"uintptr", uptr, ErrUnsupportedType},
+	}
+
+	for _, tf := range tt {
+		if _, err := Marshal(tf.Value); errors.Is(err, ErrUnsupportedType) {
+			t.Fatal(err)
+		}
+	}
 }
 
 func TestMarshalNullSupport(t *testing.T) {

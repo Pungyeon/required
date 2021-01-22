@@ -2,14 +2,14 @@ package json
 
 import (
 	"bytes"
-	stdjson "encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
 )
 
 func Marshal(v interface{}) ([]byte, error) {
-	return stdjson.Marshal(v)
+	return marshal(v)
 }
 
 func marshal(v interface{}) ([]byte, error) {
@@ -88,10 +88,29 @@ func _marshal(val reflect.Value, buf *bytes.Buffer) error {
 			return nil
 		}
 		return marshalArray(val, buf)
-	case reflect.Chan:
-		// do something
 	}
-	return fmt.Errorf("not unsupported: %v - %v", val.Kind(), buf.String())
+
+	//return fmt.Errorf("not unsupported: %v - %v", val.Kind(), buf.String())
+	return nil
+}
+
+var ErrUnsupportedType = errors.New("(required::json) unsupported type")
+
+type errUnsupportedType struct {
+	val reflect.Value
+}
+
+func (err errUnsupportedType) Unwrap() error {
+	return ErrUnsupportedType
+}
+
+func (err errUnsupportedType) Error() string {
+	if err.val.IsValid() {
+		return fmt.Sprintf("%v: (kind: %v) (type: %v)",
+			ErrUnsupportedType, err.val.Kind(), err.val.Type())
+	}
+	return fmt.Sprintf("%v: (kind: %v)",
+		ErrUnsupportedType, err.val.Kind())
 }
 
 func marshalArray(val reflect.Value, buf *bytes.Buffer) error {
@@ -170,11 +189,19 @@ func marshalStruct(val reflect.Value, buf *bytes.Buffer) error {
 	if err != nil {
 		return err
 	}
-	for i := 0; i < val.NumField(); i++ {
-		buf.WriteString(tags[i])
+	var i int
+	for tags[i].private { // TODO : @pungyeon does this check really make sure that it's private? :|
+		i++
+	}
+	for i < val.NumField() {
+		buf.WriteString(tags[i].name)
 		buf.WriteRune(colon)
 		if err := _marshal(val.Field(i), buf); err != nil {
 			return err
+		}
+		i++
+		for i < val.NumField() && tags[i].private {
+			i++
 		}
 		if i < val.NumField()-1 {
 			buf.WriteByte(',')
@@ -184,17 +211,22 @@ func marshalStruct(val reflect.Value, buf *bytes.Buffer) error {
 	return nil
 }
 
-var fieldCache = make(map[reflect.Type][]string)
+var fieldCache = make(map[reflect.Type][]field)
+
+type field struct {
+	private bool
+	name    string
+}
 
 var diff uint8 = 'a' - 'A'
 
-func GetJSONFieldName(val reflect.Value) ([]string, error) {
+func GetJSONFieldName(val reflect.Value) ([]field, error) {
 	var f reflect.StructField
 	tags, ok := fieldCache[val.Type()]
 	if ok {
 		return tags, nil
 	}
-	tags = make([]string, val.NumField())
+	tags = make([]field, val.NumField())
 	for i := 0; i < val.NumField(); i++ {
 		f = val.Type().Field(i)
 		jsonTag, ok := f.Tag.Lookup("json")
@@ -213,13 +245,19 @@ func GetJSONFieldName(val reflect.Value) ([]string, error) {
 				}
 			}
 			buf.WriteRune('"')
-			tags[i] = buf.String()
+			tags[i] = field{
+				private: f.PkgPath != "",
+				name:    buf.String(),
+			}
 		} else {
 			term := indexOf(jsonTag, '"')
 			if term == -1 || term >= len(jsonTag) {
 				return tags, fmt.Errorf("illegal json tag: %v", jsonTag)
 			}
-			tags[i] = jsonTag[jsonPrefixLen : term+1]
+			tags[i] = field{
+				private: f.PkgPath != "",
+				name:    jsonTag[jsonPrefixLen : term+1],
+			}
 		}
 	}
 	fieldCache[val.Type()] = tags
