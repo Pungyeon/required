@@ -90,8 +90,7 @@ func _marshal(val reflect.Value, buf *bytes.Buffer) error {
 		return marshalArray(val, buf)
 	}
 
-	//return fmt.Errorf("not unsupported: %v - %v", val.Kind(), buf.String())
-	return nil
+	return errUnsupportedType{val: val}
 }
 
 var ErrUnsupportedType = errors.New("(required::json) unsupported type")

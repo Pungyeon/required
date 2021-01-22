@@ -43,7 +43,7 @@ func TestMarshalUnsupportedType(t *testing.T) {
 	}
 
 	for _, tf := range tt {
-		if _, err := Marshal(tf.Value); errors.Is(err, ErrUnsupportedType) {
+		if _, err := Marshal(tf.Value); !errors.Is(err, ErrUnsupportedType) {
 			t.Fatal(err)
 		}
 	}
