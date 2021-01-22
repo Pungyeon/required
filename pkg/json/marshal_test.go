@@ -31,8 +31,6 @@ func TestMarshalSupport(t *testing.T) {
 	if string(data) != `{"name":"Lasse","integer":1,"float":3.2,"bool":true,"array":[1,2,3],"map":{"1":"hello","2":"goodbye"}}` {
 		t.Fatal(string(data))
 	}
-	//`{"name":"Lasse","integer":1,"float":,"bool":true,"array":[1,2,3],"map":{"1":"hello","2":"goodbye"}}`
-	//`{"name":"Lasse","integer":1,"float":3.2,"bool":true,"array":[1,2,3],"map":{"1":"hello","2":"goodbye"}}`
 }
 
 var obj = MarshalObj{
