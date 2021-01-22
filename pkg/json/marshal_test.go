@@ -11,6 +11,7 @@ type MarshalObj struct {
 	Float   float64
 	Bool    bool
 	Array   []int
+	Map     map[int]string
 }
 
 func TestMarshalSupport(t *testing.T) {
@@ -22,28 +23,33 @@ func TestMarshalSupport(t *testing.T) {
 		t.Fatal(string(data))
 	}
 
-	data, err = marshal(MarshalObj{
-		Name:    "Lasse",
-		Integer: 1,
-		Bool:    true,
-		Array:   []int{1, 2, 3},
-		Float:   3.2,
-	})
+	data, err = marshal(obj)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(data) != `{"name":"Lasse","integer":1,"float":3.2,"bool":true,"array":[1,2,3]}` {
+
+	if string(data) != `{"name":"Lasse","integer":1,"float":3.2,"bool":true,"array":[1,2,3],"map":{"1":"hello","2":"goodbye"}}` {
 		t.Fatal(string(data))
 	}
+	//`{"name":"Lasse","integer":1,"float":,"bool":true,"array":[1,2,3],"map":{"1":"hello","2":"goodbye"}}`
+	//`{"name":"Lasse","integer":1,"float":3.2,"bool":true,"array":[1,2,3],"map":{"1":"hello","2":"goodbye"}}`
 }
 
-var objSample = MarshalObj{
-	Name: "Lasse",
+var obj = MarshalObj{
+	Name:    "Lasse",
+	Integer: 1,
+	Bool:    true,
+	Array:   []int{1, 2, 3},
+	Float:   3.2,
+	Map: map[int]string{
+		1: "hello",
+		2: "goodbye",
+	},
 }
 
 func BenchmarkMarshalStd(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		data, err := json.Marshal(objSample)
+		data, err := json.Marshal(obj)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -53,7 +59,7 @@ func BenchmarkMarshalStd(b *testing.B) {
 
 func BenchmarkMarshalPkg(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		data, err := marshal(objSample)
+		data, err := marshal(obj)
 		if err != nil {
 			b.Fatal(err)
 		}

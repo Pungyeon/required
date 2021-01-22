@@ -22,8 +22,8 @@ func marshal(v interface{}) ([]byte, error) {
 }
 
 var (
-	quote = `"`
-	colon = `:`
+	quote = '"'
+	colon = ':'
 )
 
 const (
@@ -31,69 +31,12 @@ const (
 	FALSE = `false`
 )
 
-//type encodingFn func(reflect.Value, *bytes.Buffer) error
-//
-//var encodeFn [27]encodingFn
-//
-//func init() {
-//	encodeFn = [27]encodingFn{
-//		unsupported,   // Invalid
-//		marshalBool,   // Bool
-//		marshalInt,    // Int
-//		marshalInt,    // Int8
-//		marshalInt,    // Int16
-//		marshalInt,    // Int32
-//		marshalInt,    // Int64
-//		unsupported,   // Uint
-//		unsupported,   // Uint8
-//		unsupported,   // Uint16
-//		unsupported,   // Uint32
-//		unsupported,   // Uint64
-//		unsupported,   // Uintptr
-//		unsupported,   // Float32
-//		unsupported,   // Float64
-//		unsupported,   // Complex64
-//		unsupported,   // Complex128
-//		unsupported,   // Array
-//		unsupported,   // Chan
-//		unsupported,   // Func
-//		unsupported,   // Interface
-//		unsupported,   // Map
-//		unsupported,   // Ptr
-//		unsupported,   // Slice
-//		marshalString, // String
-//		marshalStruct, // Struct
-//		unsupported,   // UnsafePointer
-//	}
-//}
-//
-//func unsupported(val reflect.Value, _ *bytes.Buffer) error {
-//	return fmt.Errorf("unsupported type: %v %v", val.Kind(), val.Type())
-//}
-//
-//func marshalBool(val reflect.Value, buf *bytes.Buffer) error {
-//	if val.Bool() {
-//		buf.WriteString(TRUE)
-//	} else {
-//		buf.WriteString(FALSE)
-//	}
-//	return nil
-//}
-//
-//func marshalInt(val reflect.Value, buf *bytes.Buffer) error {
-//	buf.WriteString(strconv.FormatInt(val.Int(), 10))
-//	return nil
-//}
-//
-//func marshalString(val reflect.Value, buf *bytes.Buffer) error {
-//	buf.WriteString(quote + val.String() + quote)
-//	return nil
-//}
-
 var scratch [64]byte
 
 func _marshal(val reflect.Value, buf *bytes.Buffer) error {
 	switch val.Kind() {
+	case reflect.Map:
+		return marshalMap(val, buf)
 	case reflect.Struct:
 		return marshalStruct(val, buf)
 	case reflect.Array, reflect.Slice:
@@ -104,7 +47,7 @@ func _marshal(val reflect.Value, buf *bytes.Buffer) error {
 		// I'm not exactly sure why this saves an allocation, but it does :shrug:
 		f := val.Float()
 		b := scratch[:0]
-		strconv.AppendFloat(b, f, 'f', -1, 64)
+		b = strconv.AppendFloat(b, f, 'f', -1, 64)
 		buf.Write(b)
 		return nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -121,7 +64,9 @@ func _marshal(val reflect.Value, buf *bytes.Buffer) error {
 		}
 		return nil
 	case reflect.String:
-		buf.WriteString(quote + val.String() + quote)
+		buf.WriteRune(quote)
+		buf.WriteString(val.String())
+		buf.WriteRune(quote)
 		return nil
 	case reflect.Chan:
 		// do something
@@ -143,6 +88,62 @@ func marshalArray(val reflect.Value, buf *bytes.Buffer) error {
 	return nil
 }
 
+func marshalMap(val reflect.Value, buf *bytes.Buffer) error {
+	buf.WriteString("{")
+	kv := val.MapRange()
+
+	hasNext := kv.Next()
+	for hasNext {
+		if err := marshalMapField(kv.Key(), buf); err != nil {
+			return err
+		}
+		buf.WriteRune(colon)
+
+		if err := _marshal(kv.Value(), buf); err != nil {
+			return err
+		}
+		hasNext = kv.Next()
+		if hasNext {
+			buf.WriteByte(',')
+		}
+	}
+
+	buf.WriteString("}")
+	return nil
+}
+
+func marshalMapField(val reflect.Value, buf *bytes.Buffer) error {
+	switch val.Kind() {
+	case reflect.Float64, reflect.Float32:
+		// The standard library uses a []byte array and AppendFloat
+		// see encode.go:573 -> func (bits floatEncoder) encode(e *encodeState, v reflect.Value, opts encOpts)
+		// I'm not exactly sure why this saves an allocation, but it does :shrug:
+		f := val.Float()
+		b := scratch[:0]
+		strconv.AppendFloat(b, f, 'f', -1, 64)
+		buf.WriteRune(quote)
+		buf.WriteString(string(b))
+		buf.WriteRune(quote)
+		return nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		buf.WriteRune(quote)
+		buf.WriteString(strconv.FormatInt(val.Int(), 10))
+		buf.WriteRune(quote)
+		return nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		buf.WriteRune(quote)
+		buf.WriteString(strconv.FormatUint(val.Uint(), 10))
+		buf.WriteRune(quote)
+		return nil
+	case reflect.String:
+		buf.WriteRune(quote)
+		buf.WriteString(val.String())
+		buf.WriteRune(quote)
+		return nil
+	}
+	return fmt.Errorf("unsupported map key: %v %v", val.Kind(), val.Type())
+}
+
 func marshalStruct(val reflect.Value, buf *bytes.Buffer) error {
 	buf.WriteString("{")
 	tags, err := GetJSONFieldName(val)
@@ -150,7 +151,8 @@ func marshalStruct(val reflect.Value, buf *bytes.Buffer) error {
 		return err
 	}
 	for i := 0; i < val.NumField(); i++ {
-		buf.WriteString(tags[i] + colon)
+		buf.WriteString(tags[i])
+		buf.WriteRune(colon)
 		if err := _marshal(val.Field(i), buf); err != nil {
 			return err
 		}
