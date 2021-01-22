@@ -277,18 +277,3 @@ func GetJSONFieldName(val reflect.Value) ([]field, error) {
 	fieldCache[val.Type()] = tags
 	return tags, nil
 }
-
-const jsonPrefixLen = len(`json:"`)
-
-func indexOf(input string, b byte) int {
-	var (
-		i = jsonPrefixLen
-	)
-	for i < len(input) {
-		if input[i] == b {
-			return i
-		}
-		i++
-	}
-	return -1
-}
