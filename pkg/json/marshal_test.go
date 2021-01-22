@@ -11,7 +11,7 @@ type MarshalObj struct {
 	Integer   int
 	Float     float64
 	Bool      bool
-	Array     []int
+	Array     []int `json:"slice,required"`
 	Map       map[int]string
 	Struct    SmallObj
 	Pointer   *SmallObj
@@ -55,7 +55,7 @@ func TestMarshalNullSupport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if string(data) != `{"name":"","integer":0,"float":0,"bool":false,"array":null,"map":null,"struct":{"name":""},"pointer":null,"interface":null}` {
+	if string(data) != `{"name":"","integer":0,"float":0,"bool":false,"slice":null,"map":null,"struct":{"name":""},"pointer":null,"interface":null}` {
 		t.Fatal(string(data))
 	}
 }

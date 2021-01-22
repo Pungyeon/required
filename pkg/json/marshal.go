@@ -214,8 +214,10 @@ func marshalStruct(val reflect.Value, buf *bytes.Buffer) error {
 var fieldCache = make(map[reflect.Type][]field)
 
 type field struct {
-	private bool
-	name    string
+	private     bool
+	name        string
+	required    bool
+	omitifempty bool
 }
 
 var diff uint8 = 'a' - 'A'
@@ -250,14 +252,26 @@ func GetJSONFieldName(val reflect.Value) ([]field, error) {
 				name:    buf.String(),
 			}
 		} else {
-			term := indexOf(jsonTag, '"')
-			if term == -1 || term >= len(jsonTag) {
-				return tags, fmt.Errorf("illegal json tag: %v", jsonTag)
+			var s, c = 0, 0
+			for c < len(jsonTag) {
+				if jsonTag[c] == ',' {
+					if tags[i].name == "" {
+						tags[i].name = `"` + jsonTag[s:c] + `"`
+					} else {
+						switch jsonTag[s:c] {
+						case "required":
+							tags[i].required = true
+						case "omitifempty":
+							tags[i].omitifempty = true
+						default:
+							return tags, fmt.Errorf("illegal json tag: %v", jsonTag)
+						}
+					}
+					s = c
+				}
+				c++
 			}
-			tags[i] = field{
-				private: f.PkgPath != "",
-				name:    jsonTag[jsonPrefixLen : term+1],
-			}
+			tags[i].private = f.PkgPath != ""
 		}
 	}
 	fieldCache[val.Type()] = tags
