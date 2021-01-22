@@ -8,6 +8,12 @@ import (
 	"strconv"
 )
 
+// Marshal is will take an object of (almost) any kind and convert this to
+// a JSON []byte slice. This interface is compatible with the std library
+// json.Marshal and also supports custom unmarshalling using the std library
+// interface json.Unmarshaler
+//
+// Unsupported values: (chan, func, complex, uintptr, unsafe pointer)
 func Marshal(v interface{}) ([]byte, error) {
 	return marshal(v)
 }
@@ -184,7 +190,7 @@ func marshalMapField(val reflect.Value, buf *bytes.Buffer) error {
 
 func marshalStruct(val reflect.Value, buf *bytes.Buffer) error {
 	buf.WriteString("{")
-	tags, err := GetJSONFieldName(val)
+	tags, err := getJSONTags(val)
 	if err != nil {
 		return err
 	}
@@ -221,7 +227,51 @@ type field struct {
 
 var diff uint8 = 'a' - 'A'
 
-func GetJSONFieldName(val reflect.Value) ([]field, error) {
+func addCreatedTag(tags []field, i int, f reflect.StructField) {
+	var buf bytes.Buffer
+	buf.WriteRune('"')
+	for i := 0; i < len(f.Name); i++ {
+		if f.Name[i] >= 'A'-1 && f.Name[i] <= 'Z' {
+			if i > 0 {
+				buf.WriteByte('_')
+			}
+			buf.WriteByte(f.Name[i] + diff)
+		} else {
+			buf.WriteByte(f.Name[i])
+		}
+	}
+	buf.WriteRune('"')
+	tags[i] = field{
+		private: f.PkgPath != "",
+		name:    buf.String(),
+	}
+}
+
+func addParsedTag(tags []field, i int, f reflect.StructField, jsonTag string) error {
+	var s, c = 0, 0
+	for c < len(jsonTag) {
+		if jsonTag[c] == ',' {
+			if tags[i].name == "" {
+				tags[i].name = `"` + jsonTag[s:c] + `"`
+			} else {
+				switch jsonTag[s:c] {
+				case "required":
+					tags[i].required = true
+				case "omitifempty":
+					tags[i].omitifempty = true
+				default:
+					return fmt.Errorf("illegal json tag: %v", jsonTag)
+				}
+			}
+			s = c
+		}
+		c++
+	}
+	tags[i].private = f.PkgPath != ""
+	return nil
+}
+
+func getJSONTags(val reflect.Value) ([]field, error) {
 	var f reflect.StructField
 	tags, ok := fieldCache[val.Type()]
 	if ok {
@@ -232,45 +282,11 @@ func GetJSONFieldName(val reflect.Value) ([]field, error) {
 		f = val.Type().Field(i)
 		jsonTag, ok := f.Tag.Lookup("json")
 		if !ok {
-			// use string concat instead ?
-			var buf bytes.Buffer
-			buf.WriteRune('"')
-			for i := 0; i < len(f.Name); i++ {
-				if f.Name[i] >= 'A'-1 && f.Name[i] <= 'Z' {
-					if i > 0 {
-						buf.WriteByte('_')
-					}
-					buf.WriteByte(f.Name[i] + diff)
-				} else {
-					buf.WriteByte(f.Name[i])
-				}
-			}
-			buf.WriteRune('"')
-			tags[i] = field{
-				private: f.PkgPath != "",
-				name:    buf.String(),
-			}
+			addCreatedTag(tags, i, f)
 		} else {
-			var s, c = 0, 0
-			for c < len(jsonTag) {
-				if jsonTag[c] == ',' {
-					if tags[i].name == "" {
-						tags[i].name = `"` + jsonTag[s:c] + `"`
-					} else {
-						switch jsonTag[s:c] {
-						case "required":
-							tags[i].required = true
-						case "omitifempty":
-							tags[i].omitifempty = true
-						default:
-							return tags, fmt.Errorf("illegal json tag: %v", jsonTag)
-						}
-					}
-					s = c
-				}
-				c++
+			if err := addParsedTag(tags, i, f, jsonTag); err != nil {
+				return tags, err
 			}
-			tags[i].private = f.PkgPath != ""
 		}
 	}
 	fieldCache[val.Type()] = tags
