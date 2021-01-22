@@ -3,7 +3,6 @@ package json
 import (
 	"bytes"
 	stdjson "encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -35,12 +34,6 @@ var scratch [64]byte
 
 func _marshal(val reflect.Value, buf *bytes.Buffer) error {
 	switch val.Kind() {
-	case reflect.Map:
-		return marshalMap(val, buf)
-	case reflect.Struct:
-		return marshalStruct(val, buf)
-	case reflect.Array, reflect.Slice:
-		return marshalArray(val, buf)
 	case reflect.Float64, reflect.Float32:
 		// The standard library uses a []byte array and AppendFloat
 		// see encode.go:573 -> func (bits floatEncoder) encode(e *encodeState, v reflect.Value, opts encOpts)
@@ -68,10 +61,37 @@ func _marshal(val reflect.Value, buf *bytes.Buffer) error {
 		buf.WriteString(val.String())
 		buf.WriteRune(quote)
 		return nil
+	case reflect.Struct:
+		return marshalStruct(val, buf)
+
+	case reflect.Ptr:
+		if val.IsNil() {
+			buf.WriteString("null")
+			return nil
+		}
+		return _marshal(val.Elem(), buf)
+	case reflect.Interface:
+		if val.IsNil() {
+			buf.WriteString("null")
+			return nil
+		}
+		return _marshal(val.Elem(), buf)
+	case reflect.Map:
+		if val.IsNil() {
+			buf.WriteString("null")
+			return nil
+		}
+		return marshalMap(val, buf)
+	case reflect.Array, reflect.Slice:
+		if val.IsNil() {
+			buf.WriteString("null")
+			return nil
+		}
+		return marshalArray(val, buf)
 	case reflect.Chan:
 		// do something
 	}
-	return errors.New("oh dear")
+	return fmt.Errorf("not unsupported: %v - %v", val.Kind(), buf.String())
 }
 
 func marshalArray(val reflect.Value, buf *bytes.Buffer) error {
