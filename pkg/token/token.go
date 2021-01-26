@@ -63,18 +63,6 @@ func init() {
 
 var TokenTypes = make([]TokenType, 126)
 
-//var TokenTypes = map[byte]TokenType{
-//	':': Colon,
-//	',': Comma,
-//	'[': OpenBrace,
-//	']': ClosingBrace,
-//	'(': OpenBracket,
-//	')': ClosingBracket,
-//	'{': OpenCurly,
-//	'}': ClosingCurly,
-//	'.': FullStop,
-//}
-
 var BraceOpposites = map[byte]byte{
 	'[': ']',
 	']': '[',
