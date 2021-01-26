@@ -1,6 +1,7 @@
 package json
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"regexp"
@@ -531,6 +532,27 @@ func TestCustomMarshaler(t *testing.T) {
 
 	if d.Value != 123 {
 		t.Fatal(d.Value)
+	}
+}
+
+func TestDecoder(t *testing.T) {
+	r := bytes.NewReader([]byte(sample))
+	var ding Ding
+	if err := NewDecoder(r).Decode(&ding); err != nil {
+		t.Fatal(err)
+	}
+	if !(ding.Ding == 1 &&
+		ding.Dong == "hello" &&
+		ding.Boolean == true &&
+		ding.Object.Name == "lasse" &&
+		ding.Array[2] == 3 &&
+		ding.StringSlice[2] == "3" &&
+		ding.MultiDimension[1][2] == 6 &&
+		ding.ObjectArray[1].Name == "basse" &&
+		ding.MapObject["lumber"] == 13 &&
+		ding.Float == 3.2) {
+		t.Fatal(ding)
+
 	}
 }
 

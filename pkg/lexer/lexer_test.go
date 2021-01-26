@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/Pungyeon/required/pkg/token"
 )
 
 func TestLexer(t *testing.T) {
-	tokens, err := Lex(`{"foo": [1, 2, {"bar": 2}, true]}`)
-	if err != nil {
-		t.Fatal(err)
+	l := NewLexer([]byte(`{"foo": [1, 2, {"bar": 2}, true]}`))
+	var tokens token.Tokens
+	for l.Next() {
+		tokens = append(tokens, l.Current())
+
 	}
 
 	result := tokens.Join(";")
@@ -59,16 +63,6 @@ func TestScanValue(t *testing.T) {
 	val = lexer.SkipValue()
 	if strings.TrimSpace(string(val)) != "2006-01-02T15:04:05" {
 		t.Fatal(string(val))
-	}
-}
-
-func BenchmarkLexerPerformance(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		tokens, err := Lex(`{"foo": [1, 2, {"bar": 2}, true]}`)
-		if err != nil {
-			b.Fatal(err)
-		}
-		_ = tokens
 	}
 }
 

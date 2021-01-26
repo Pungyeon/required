@@ -2,6 +2,8 @@ package lexer
 
 import (
 	"errors"
+	"io"
+	"io/ioutil"
 
 	"github.com/Pungyeon/required/pkg/token"
 )
@@ -15,11 +17,19 @@ type Result struct {
 	Error error
 }
 
-type ILexer interface {
-	EOF() bool
-	Previous() token.Token
-	Current() token.Token
-	Next() bool
+type Lexer struct {
+	current  token.Token
+	previous token.Token
+	index    int
+	input    []byte
+}
+
+func NewLexerReader(r io.Reader) (*Lexer, error) {
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	return NewLexer(data), nil
 }
 
 func NewLexer(input []byte) *Lexer {
@@ -151,53 +161,6 @@ func (l *Lexer) Next() bool {
 	default:
 		return l.assign(token.NewToken(l.input, l.index))
 	}
-}
-
-func Lex(input string) (token.Tokens, error) {
-	l := &Lexer{
-		input: []byte(input),
-		index: -1,
-	}
-
-	for l.next() {
-		switch l.value() {
-		case token.Space, token.Tab, token.NewLine:
-			continue
-		case token.Quotation:
-			t, err := l.readString()
-			if err != nil {
-				return token.Tokens{}, errInvalidJSONString
-			}
-			l.output = append(l.output, t)
-		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-			t, err := l.readNumber()
-			if err != nil {
-				return token.Tokens{}, errInvalidJSONString
-			}
-			l.output = append(l.output, t)
-			l.index--
-		case 't':
-			l.output = append(l.output, token.Token{Value: TRUE, Type: token.Boolean})
-			l.index += len("rue")
-		case 'f':
-			l.output = append(l.output, token.Token{Value: FALSE, Type: token.Boolean})
-			l.index += len("alse")
-		case 'n':
-			l.output = append(l.output, token.Token{Value: NULL, Type: token.Null})
-			l.index += len("ull")
-		default:
-			l.output = append(l.output, token.NewToken(l.input, l.index))
-		}
-	}
-	return l.output, nil
-}
-
-type Lexer struct {
-	current  token.Token
-	previous token.Token
-	index    int
-	input    []byte
-	output   []token.Token
 }
 
 func (l *Lexer) next() bool {

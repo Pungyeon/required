@@ -1,9 +1,34 @@
 package json
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"testing"
+)
+
+var (
+	expectedString = `{"name":"Lasse","integer":1,"float":3.2,"bool":true,"slice":[1,2,3],"map":{"1":"hello","2":"goodbye"},"struct":{"name":"lasse"},"pointer":{"name":"pointer"},"interface":{"name":"interface"}}`
+	obj            = MarshalObj{
+		Name:    "Lasse",
+		Integer: 1,
+		Bool:    true,
+		Array:   []int{1, 2, 3},
+		Float:   3.2,
+		Map: map[int]string{
+			1: "hello",
+			2: "goodbye",
+		},
+		Struct: SmallObj{
+			Name: "lasse",
+		},
+		Pointer: &SmallObj{
+			Name: "pointer",
+		},
+		Interface: &SmallObj{
+			Name: "interface",
+		},
+	}
 )
 
 type MarshalObj struct {
@@ -74,30 +99,21 @@ func TestMarshalSupport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if string(data) != `{"name":"Lasse","integer":1,"float":3.2,"bool":true,"slice":[1,2,3],"map":{"1":"hello","2":"goodbye"},"struct":{"name":"lasse"},"pointer":{"name":"pointer"},"interface":{"name":"interface"}}` {
-		t.Fatal(string(data))
+	if string(data) != expectedString {
+		t.Error(string(data))
+		t.Fatal(expectedString)
 	}
 }
 
-var obj = MarshalObj{
-	Name:    "Lasse",
-	Integer: 1,
-	Bool:    true,
-	Array:   []int{1, 2, 3},
-	Float:   3.2,
-	Map: map[int]string{
-		1: "hello",
-		2: "goodbye",
-	},
-	Struct: SmallObj{
-		Name: "lasse",
-	},
-	Pointer: &SmallObj{
-		Name: "pointer",
-	},
-	Interface: &SmallObj{
-		Name: "interface",
-	},
+func TestEncoder(t *testing.T) {
+	var buf bytes.Buffer
+	if err := NewEncoder(&buf).Encode(obj); err != nil {
+		t.Fatal(err)
+	}
+	if buf.String() != expectedString {
+		t.Error(buf.String())
+		t.Fatal(expectedString)
+	}
 }
 
 func BenchmarkMarshalStd(b *testing.B) {
