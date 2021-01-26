@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"strconv"
 )
@@ -16,6 +17,29 @@ import (
 // Unsupported values: (chan, func, complex, uintptr, unsafe pointer)
 func Marshal(v interface{}) ([]byte, error) {
 	return marshal(v)
+}
+
+// NewEncoder will return a new json Encoder, this is used for
+// marshalling a value to json directly to an io.Writer
+func NewEncoder(w io.Writer) *Encoder {
+	return &Encoder{w: w}
+}
+
+// Encode will take a value and encode this to json,
+// writing the eventual result to the io.Writer specified
+// in the constructor
+func (e *Encoder) Encode(v interface{}) error {
+	data, err := marshal(v)
+	if err != nil {
+		return err
+	}
+	_, err = e.w.Write(data)
+	return err
+}
+
+// Encoder is used for encoding json directory to a specified io.Writer
+type Encoder struct {
+	w io.Writer
 }
 
 func marshal(v interface{}) ([]byte, error) {
@@ -195,7 +219,7 @@ func marshalStruct(val reflect.Value, buf *bytes.Buffer) error {
 		return err
 	}
 	var i int
-	for tags[i].private { // TODO : @pungyeon does this check really make sure that it's private? :|
+	for tags[i].private {
 		i++
 	}
 	for i < val.NumField() {
