@@ -28,6 +28,8 @@ var (
 	ErrInvalidJSON  = errors.New("invalid json")
 	ErrUnmatchedBrace = errors.New("unmatched brace found")
 	ErrMissingBrace = errors.New("missing closing brace")
+
+	Empty = Token{}
 )
 
 type tokenErr struct {
