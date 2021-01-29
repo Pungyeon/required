@@ -74,3 +74,15 @@ func BenchmarkLexerStreamPerformance(b *testing.B) {
 		}
 	}
 }
+
+func Inputs(s string) (string, error, int) {
+	return s, nil, 1
+}
+
+func Output(s string, e error, i int) {
+	fmt.Println(s, e, i)
+}
+
+func TestThing(t *testing.T) {
+	Output(Inputs("name"))
+}

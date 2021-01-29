@@ -2,26 +2,20 @@ package lexer
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 
 	"github.com/Pungyeon/required/pkg/token"
 )
 
-var (
-	errInvalidJSONString = errors.New("invalid JSON string")
-)
-
-type Result struct {
-	Token token.Token
-	Error error
-}
-
 type Lexer struct {
 	current  token.Token
 	previous token.Token
 	index    int
 	input    []byte
+	err      error
+	stack *Stack
 }
 
 func NewLexerReader(r io.Reader) (*Lexer, error) {
@@ -36,7 +30,15 @@ func NewLexer(input []byte) *Lexer {
 	return &Lexer{
 		input: input,
 		index: -1,
+		stack: NewStack(10),
 	}
+}
+
+func (l *Lexer) GetError() error {
+	if l.stack.index != 0 {
+		return token.Error(token.ErrMissingBrace, fmt.Sprintf("expected '%s', but not found: %s", string(l.stack.Pop()), l.input[:]))
+	}
+	return l.err
 }
 
 func (l *Lexer) EOF() bool {
@@ -49,6 +51,26 @@ func (l *Lexer) Previous() token.Token {
 
 func (l *Lexer) Current() token.Token {
 	return l.current
+}
+
+func (l *Lexer) CurrentLine() string {
+	i, j := l.index-1, l.index
+	if i < 0 {
+		i = 0
+	}
+	for i > 0 {
+		if l.input[i] == '\n' {
+			break
+		}
+		i--
+	}
+	for j < len(l.input) {
+		if l.input[i] == '\n' {
+			return string(l.input[i:j])
+		}
+		j++
+	}
+	return string(l.input[i:])
 }
 
 func (l *Lexer) SkipValue() []byte {
@@ -138,13 +160,15 @@ func (l *Lexer) Next() bool {
 	case token.Quotation:
 		t, err := l.readString()
 		if err != nil {
-			panic(errInvalidJSONString) // TODO : no panic plox
+			l.err = token.Error(token.ErrInvalidJSON, string(l.input[:l.index]))
+			return false
 		}
 		return l.assign(t)
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		t, err := l.readNumber()
 		if err != nil {
-			panic(errInvalidJSONString) // TODO : no panic plox
+			l.err = token.Error(token.ErrInvalidJSON, string(l.input[:l.index]))
+			return false
 		}
 		l.index--
 		return l.assign(t)
@@ -173,6 +197,15 @@ func (l *Lexer) value() byte {
 }
 
 func (l *Lexer) assign(t token.Token) bool {
+	if t.Type.IsOpening() {
+		l.stack.Push(t.Value[0])
+	}
+	if t.Type.IsEnding() {
+		if token.BraceOpposites[l.stack.Pop()] != t.Value[0] {
+			l.err = token.Error(token.ErrUnmatchedBrace, string(l.input[:l.index]))
+			return false
+		}
+	}
 	l.previous = l.current
 	l.current = t
 	return true

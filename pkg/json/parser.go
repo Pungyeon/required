@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strconv"
 
 	"github.com/Pungyeon/required/pkg/lexer"
 	"github.com/Pungyeon/required/pkg/required"
@@ -16,14 +15,19 @@ import (
 func Parse(l *lexer.Lexer, v interface{}) error {
 	val := getReflectValue(v)
 	if val.Kind() == reflect.Interface {
-		obj, err := (&parser{lexer: l}).parse(val)
+		p := &parser{lexer: l}
+		obj, err := p.parse(val)
 		if err != nil {
 			return err
 		}
 		val.Set(obj)
-		return nil
+		return p.lexer.GetError()
 	}
-	return (&parser{lexer: l}).decode(val)
+	p := &parser{lexer: l}
+	if err := p.decode(val); err != nil {
+		return err
+	}
+	return p.lexer.GetError()
 }
 
 func (p *parser) decode(val reflect.Value) error {
@@ -88,31 +92,60 @@ func (p *parser) _decode(val reflect.Value, tags structtag.Tags) error {
 		reflect.String, reflect.Bool: // what about uints?
 		return p.current().SetValueOf(val)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		n, err := strconv.ParseInt(p.current().ToString(), 10, 64)
+		n, err := token.Ttoi(p.current())
 		if err != nil {
 			return err
 		}
 		val.SetUint(uint64(n))
 		return err
 	}
-	fmt.Printf("unsupported type: %s\n", val.Type()) // TODO : remove this
+	return token.Error(token.ErrInvalidJSON, p.current().ToString())
 	return nil
 }
 
 func (p *parser) decodeObject(val reflect.Value, tags structtag.Tags) error {
-	for p.next() {
-		if p.current().Type == token.Colon {
-			tag := tags.Tags[p.previous().ToString()]
-			if err := p.decode(val.Field(tag.FieldIndex)); err != nil {
-				return err
-			}
-			tags.Set(tag)
+	fmt.Println("decodeObject:", p.current())
+	p.next()
+	for {
+		fmt.Println(p.current())
+		if p.current().Type != token.String {
+			return token.Error(token.ErrInvalidJSON, fmt.Sprintf("expected object field, got: (%s) -> %s", p.previous(), p.current()))
 		}
-		if p.eof() || p.current().Type == token.ClosingCurly {
+		p.next()
+		if p.current().Type != token.Colon {
+			return token.Error(token.ErrInvalidJSON, fmt.Sprintf("expected colon token: (%s) -> %s", p.previous(), p.current()))
+		}
+		tag := tags.Tags[p.previous().ToString()]
+		if err := p.decode(val.Field(tag.FieldIndex)); err != nil {
+			return err
+		}
+		tags.Set(tag)
+
+		p.next()
+		if p.current().Type == token.Comma {
 			p.next()
-			break
+		} else {
+			if p.eof() || p.current().Type == token.ClosingCurly {
+				p.next()
+				break
+			} else {
+				return token.Error(token.ErrInvalidJSON, fmt.Sprintf("expected closing curly or comma: (%s) -> %s", p.previous(), p.current()))
+			}
 		}
 	}
+	//for p.next() {
+	//	if p.current().Type == token.Colon {
+	//		tag := tags.Tags[p.previous().ToString()]
+	//		if err := p.decode(val.Field(tag.FieldIndex)); err != nil {
+	//			return err
+	//		}
+	//		tags.Set(tag)
+	//	}
+	//	if p.eof() || p.current().Type == token.ClosingCurly {
+	//		p.next()
+	//		break
+	//	}
+	//}
 	return tags.CheckRequired()
 }
 

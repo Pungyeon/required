@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/Pungyeon/required/pkg/token"
+
 	"github.com/Pungyeon/required/pkg/lexer"
 	"github.com/Pungyeon/required/pkg/structtag"
 )
@@ -454,12 +456,12 @@ func TestRequiredFields(t *testing.T) {
 	}
 
 	var invalidEmail TestUser
-	if err := Parse(LexString(t, `{"email": "dingeling.dk"`), &invalidEmail); err != errEmailRequired {
+	if err := Parse(LexString(t, `{"email": "dingeling.dk"}`), &invalidEmail); err != errEmailRequired {
 		t.Fatal("no required error, or unexpected error returned:", err)
 	}
 
 	var validEmail TestUser
-	if err := Parse(LexString(t, `{"email": "lasse@jakobsen.dev"`), &validEmail); err != nil {
+	if err := Parse(LexString(t, `{"email": "lasse@jakobsen.dev"}`), &validEmail); err != nil {
 		t.Fatal("no required error, or unexpected error returned:", err)
 	}
 }
@@ -556,13 +558,36 @@ func TestDecoder(t *testing.T) {
 	}
 }
 
+func TestInvalidJSON(t *testing.T) {
+	tt := []struct {
+		name string
+		json string
+		err  error
+	}{
+		{"early comma", `{"name",}`, token.ErrInvalidJSON},
+		{"wrong value", `{"ding": "this should be an int64"`, token.ErrInvalidValue},
+		{"unfinished inner array", `{"multi_dimension": [[]`, token.ErrMissingBrace},
+		//{"unfinished object", `{"name"}`, token.ErrInvalidJSON},
+		{"not a bool", `{"boolean": "yes"}`, token.ErrInvalidValue},
+	}
+
+	for _, tf := range tt {
+		t.Run(tf.name, func(t *testing.T) {
+			var ding Ding
+			if err := Parse(LexString(t, tf.json), &ding); !errors.Is(err, tf.err) {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestMapArray(t *testing.T) {
 	type MA struct {
 		Array []map[string]int
 	}
 
 	var ma MA
-	if err := Parse(LexString(t, `{ "array": [{ "name": 3 }]`), &ma); err != nil {
+	if err := Parse(LexString(t, `{ "array": [{ "name": 3 }] }`), &ma); err != nil {
 		t.Fatal(err)
 	}
 	if ma.Array[0]["name"] != 3 {
@@ -576,7 +601,7 @@ func TestMapArrayInterface(t *testing.T) {
 	}
 
 	var ma interface{}
-	if err := Parse(LexString(t, `{ "array": [{ "name": 3 }]`), &ma); err != nil {
+	if err := Parse(LexString(t, `{ "array": [{ "name": 3 }] }`), &ma); err != nil {
 		t.Fatal(err)
 	}
 	if ma.(map[string]interface{})["array"].([]interface{})[0].(map[string]interface{})["name"].(int) != 3 {
