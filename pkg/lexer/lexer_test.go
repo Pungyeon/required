@@ -3,6 +3,7 @@ package lexer
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 
@@ -12,9 +13,15 @@ import (
 func TestLexer(t *testing.T) {
 	l := NewLexer([]byte(`{"foo": [1, 2, {"bar": 2}, true]}`))
 	var tokens token.Tokens
-	for l.Next() {
-		tokens = append(tokens, l.Current())
-
+	for {
+		tk, err := l.Next()
+		if err != nil {
+			if err != io.EOF {
+				t.Fatal(err)
+			}
+			break
+		}
+		tokens = append(tokens, tk)
 	}
 
 	result := tokens.Join(";")
@@ -69,8 +76,9 @@ func TestScanValue(t *testing.T) {
 func BenchmarkLexerStreamPerformance(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		l := NewLexer([]byte(`{"foo": [1, 2, {"bar": 2}, true]}`))
-		for l.Next() {
-			_ = l.Current()
+		_, err := l.Next()
+		if err != nil {
+			b.Fatal(err)
 		}
 	}
 }
