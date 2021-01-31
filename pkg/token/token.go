@@ -65,14 +65,6 @@ func Ttof(token Token) (float64, error) {
 	return n, nil
 }
 
-func Atoi(s string) (int64, error) {
-	n, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		return 0, Error(ErrInvalidValue, err.Error())
-	}
-	return n, nil
-}
-
 type TokenType int
 
 func (t TokenType) IsEnding() bool {

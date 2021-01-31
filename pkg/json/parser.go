@@ -153,17 +153,11 @@ func (p *parser) decodeObject(val reflect.Value, tags structtag.Tags) error {
 		} else {
 			tags.Set(tag)
 		}
-		//if err := p.next(); err != nil {
-		//	return checkIfEOF(err)
-		//}
 		if p.current.Type == token.Comma {
 			if err := p.next(); err != nil {
 				return checkIfEOF(err)
 			}
 		} else {
-			//if err := p.next(); err != nil {
-			//	return token.Error(token.ErrInvalidJSON, fmt.Sprintf("expected closing curly or comma: -> %s", p.lexer.Previous()))
-			//}
 			if p.current.Type == token.ClosingCurly {
 				return tags.CheckRequired()
 			} else {

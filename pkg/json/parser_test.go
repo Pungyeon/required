@@ -569,8 +569,8 @@ func TestInvalidJSON(t *testing.T) {
 	}{
 		{"early comma", `{"name",}`, token.ErrInvalidJSON},
 		{"wrong value", `{"ding": "this should be an int64"`, token.ErrInvalidValue},
-		{"unfinished inner array", `{"multi_dimension": [[]`, token.ErrInvalidJSON},
-		//{"unfinished object", `{"name"}`, token.ErrInvalidJSON},
+		{"unfinished inner array", `{"multi_dimension": [[]`, token.ErrUnmatchedBrace},
+		{"unfinished object", `{"name"}`, token.ErrInvalidJSON},
 		{"not a bool", `{"boolean": "yes"}`, token.ErrInvalidValue},
 	}
 

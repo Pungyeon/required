@@ -30,31 +30,18 @@ func NewLexer(input []byte) *Lexer {
 }
 
 func (l *Lexer) Previous() string {
-	return string(l.input[:l.index])
+	return string(l.input[max(0, l.index-100):l.index])
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func (l *Lexer) EOF() bool {
 	return l.index >= len(l.input)
-}
-
-func (l *Lexer) CurrentLine() string {
-	i, j := l.index-1, l.index
-	if i < 0 {
-		i = 0
-	}
-	for i > 0 {
-		if l.input[i] == '\n' {
-			break
-		}
-		i--
-	}
-	for j < len(l.input) {
-		if l.input[i] == '\n' {
-			return string(l.input[i:j])
-		}
-		j++
-	}
-	return string(l.input[i:])
 }
 
 func (l *Lexer) SkipValue() []byte {
@@ -136,7 +123,7 @@ var (
 
 func (l *Lexer) Next() (token.Token, error) {
 	if !l.next() {
-		return token.Empty, io.EOF
+		return token.Empty, l.isValid()
 	}
 	switch l.value() {
 	case token.Space, token.Tab, token.NewLine:
@@ -212,4 +199,11 @@ func (l *Lexer) readString() (token.Token, error) {
 		}
 	}
 	return token.Empty, token.Error(token.ErrInvalidJSON, string(l.input[:l.index]))
+}
+
+func (l *Lexer) isValid() error {
+	if l.stack.IsEmpty() {
+		return io.EOF
+	}
+	return token.Error(token.ErrUnmatchedBrace, l.Previous())
 }

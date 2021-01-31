@@ -13,6 +13,10 @@ func NewStack(size int) *Stack {
 	}
 }
 
+func (s *Stack) IsEmpty() bool {
+	return s.index == 0
+}
+
 func (s *Stack) Pop() byte {
 	s.index--
 	if s.index < 0 {
