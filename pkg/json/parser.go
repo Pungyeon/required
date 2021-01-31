@@ -186,7 +186,7 @@ func (p *parser) decodeArray(arr reflect.Value) error {
 	var i int
 	for {
 		if err := p.next(); err != nil {
-			return checkIfEOF(err)
+			return err
 		}
 		switch p.current.Type {
 		case token.Comma:
