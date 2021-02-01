@@ -27,8 +27,14 @@ func Parse(l *lexer.Lexer, v interface{}) error {
 	if err := p.next(); err != nil {
 		return err
 	}
-	if err := p.decode(val); err != nil {
-		return err
+	return p.decode(val)
+}
+
+func squash(errs ...error) error {
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -47,16 +53,17 @@ func (p *parser) decode(val reflect.Value) error {
 		}
 	}
 
-	if err := p._decode(val, tags); err != nil {
-		return err
-	}
+	return squash(
+		p._decode(val, tags),
+		p.checkRequiredInterface(val, tags))
+}
 
+func (p *parser) checkRequiredInterface(val reflect.Value, tags structtag.Tags) error {
 	if tags.RequiredInterface {
 		if val.CanAddr() {
 			return val.Addr().Interface().(required.Required).IsValueValid()
-		} else {
-			return val.Interface().(required.Required).IsValueValid()
 		}
+		return val.Interface().(required.Required).IsValueValid()
 	}
 	return nil
 }
@@ -91,31 +98,22 @@ func (p *parser) _decode(val reflect.Value, tags structtag.Tags) error {
 		val.Set(vo)
 		return nil
 	case reflect.Array, reflect.Slice:
-		if err := p.decodeArray(val); err != nil {
-			return err
-		}
-		return checkIfEOF(p.next())
+		return squash(
+			p.decodeArray(val),
+			checkIfEOF(p.next()))
 	case reflect.Map:
 		return p.decodeMap(val)
 	case reflect.Struct:
-		if err := p.decodeObject(val, tags); err != nil {
-			return err
-		}
-		return checkIfEOF(p.next())
+		return squash(
+			p.decodeObject(val, tags),
+			checkIfEOF(p.next()))
 	case reflect.Int, reflect.Float32, reflect.Float64,
 		reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.String, reflect.Bool: // what about uints?
-		if err := p.current.SetValueOf(val); err != nil {
-			return err
-		}
-		return checkIfEOF(p.next())
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		n, err := token.Ttoi(p.current)
-		if err != nil {
-			return err
-		}
-		val.SetUint(uint64(n))
-		return err
+		reflect.String, reflect.Bool, // what about uints?
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			return squash(
+				p.current.SetValueOf(val),
+				checkIfEOF(p.next()))
 	}
 	return token.Error(token.ErrInvalidJSON, p.current.ToString())
 }
@@ -131,28 +129,18 @@ func (p *parser) decodeObject(val reflect.Value, tags structtag.Tags) error {
 			}
 			return token.Error(token.ErrInvalidJSON, fmt.Sprintf("expected object field, got: %s", p.current))
 		}
-		field := p.current
-		if err := p.next(); err != nil {
-			return checkIfEOF(err)
-		}
-		if p.current.Type != token.Colon {
-			return token.Error(token.ErrInvalidJSON, fmt.Sprintf("expected colon token: %s", p.current))
-		}
-		if err := p.next(); err != nil {
-			return checkIfEOF(err)
-		}
-		tag := tags.Tags[field.ToString()]
-		if err := p.decode(val.Field(tag.FieldIndex)); err != nil {
+		tag := tags.Tags[p.current.ToString()]
+		err := squash(
+			p.next(),
+			p.expectColon(),
+			p.next(),
+			p.decode(val.Field(tag.FieldIndex)),
+			p.setTags(tags, tag),
+			)
+		if err != nil {
 			return err
 		}
 
-		if p.current.Type == token.Null {
-			if err := p.next(); err != nil {
-				return checkIfEOF(err)
-			}
-		} else {
-			tags.Set(tag)
-		}
 		if p.current.Type == token.Comma {
 			if err := p.next(); err != nil {
 				return checkIfEOF(err)
@@ -165,6 +153,21 @@ func (p *parser) decodeObject(val reflect.Value, tags structtag.Tags) error {
 			}
 		}
 	}
+}
+
+func (p *parser) setTags(tags structtag.Tags, tag structtag.Tag) error {
+	if p.current.Type == token.Null {
+		return p.next()
+	}
+	tags.Set(tag)
+	return nil
+}
+
+func (p *parser) expectColon() error {
+	if p.current.Type != token.Colon {
+		return token.Error(token.ErrInvalidJSON, fmt.Sprintf("expected colon token: %s", p.current))
+	}
+	return nil
 }
 
 func grow(arr reflect.Value, i int) reflect.Value {

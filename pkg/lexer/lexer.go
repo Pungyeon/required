@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 
@@ -151,7 +152,8 @@ func (l *Lexer) Next() (token.Token, error) {
 		if t.Type.IsEnding() {
 			opposite := l.stack.Pop()
 			if token.BraceOpposites[opposite] != t.Value[0] {
-				return t, token.Error(token.ErrUnmatchedBrace, string(l.input[:l.index]))
+				return t, token.Error(token.ErrMismatchedBrace,
+					fmt.Sprintf("expecting: %s, got: %s", string(opposite), string(l.input[:l.index])))
 			}
 		}
 		return t, nil

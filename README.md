@@ -85,7 +85,3 @@ BenchmarkMarshalPkg-8             729928              1581 ns/op             832
 PASS
 ok      github.com/Pungyeon/required/pkg/json   2.445s
 ```
-
-
-
-

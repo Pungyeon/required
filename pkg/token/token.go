@@ -27,6 +27,7 @@ var (
 	ErrInvalidValue = errors.New("invalid token value")
 	ErrInvalidJSON  = errors.New("invalid json")
 	ErrUnmatchedBrace = errors.New("unmatched brace found")
+	ErrMismatchedBrace = errors.New("mismatched brace found")
 	ErrMissingBrace = errors.New("missing closing brace")
 
 	Empty = Token{}
@@ -220,6 +221,13 @@ func (token Token) SetValueOf(val reflect.Value) error {
 			return err
 		}
 		val.SetInt(n)
+		return err
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		n, err := Ttoi(token)
+		if err != nil {
+			return err
+		}
+		val.SetUint(uint64(n))
 		return err
 	case reflect.Float32, reflect.Float64:
 		f, err := Ttof(token)
