@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/Pungyeon/required/pkg/token"
+	"reflect"
 	"regexp"
 	"strconv"
 	"testing"
-
-	"github.com/Pungyeon/required/pkg/token"
 
 	"github.com/Pungyeon/required/pkg/lexer"
 	"github.com/Pungyeon/required/pkg/structtag"
@@ -28,6 +28,7 @@ type Ding struct {
 	StringSlice    []string     `json:"string_slice"`
 	MultiDimension [][]int      `json:"multi_dimension"`
 	ObjectArray    []TestObject `json:"obj_array"`
+
 	MapObject      map[string]int
 }
 
@@ -599,6 +600,7 @@ func TestMapArray(t *testing.T) {
 }
 
 func TestMapArrayInterface(t *testing.T) {
+	reflect.ValueOf(32)
 	type MA struct {
 		Array []map[string]int
 	}

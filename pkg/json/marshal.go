@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/Pungyeon/required/pkg/unsafe"
 	"io"
 	"reflect"
 	"strconv"
@@ -190,7 +191,7 @@ func marshalMapField(val reflect.Value, buf *bytes.Buffer) error {
 		b := scratch[:0]
 		strconv.AppendFloat(b, f, 'f', -1, 64)
 		buf.WriteRune(quote)
-		buf.WriteString(string(b))
+		buf.WriteString(unsafe.BytesToString(b))
 		buf.WriteRune(quote)
 		return nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:

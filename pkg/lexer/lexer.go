@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"fmt"
+	"github.com/Pungyeon/required/pkg/unsafe"
 	"io"
 	"io/ioutil"
 
@@ -31,7 +32,7 @@ func NewLexer(input []byte) *Lexer {
 }
 
 func (l *Lexer) Previous() string {
-	return string(l.input[max(0, l.index-100):l.index])
+	return unsafe.BytesToString(l.input[max(0, l.index-100):l.index])
 }
 
 func max(a, b int) int {
