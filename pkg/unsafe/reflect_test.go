@@ -40,9 +40,9 @@ func (f flag) ro() flag {
 }
 
 type Person struct {
-	Name string
-	Age int
-	Twitter string
+	Name string `json:"name"`
+	Age int `json:"age"`
+	Twitter string `json:"twitter"`
 }
 
 func (p *Person) Hi() {
@@ -102,7 +102,7 @@ func ValueOf(v interface{}) Value {
 	val := reflect.ValueOf(v)
 	//val.NumField()
 	//val.Method(0)
-	//val.Field(0)
+	//val.Type().Field(0)
 	val.Type().Name()
 	t := (*emptyInterface)(unsafe.Pointer(&v))
 	f := t.typ.kind & kindMask
@@ -113,20 +113,50 @@ func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
 }
 
+type String struct {
+	Data unsafe.Pointer
+	Len  int
+}
+
 type name struct {
 	bytes *byte
 }
 
-func (f name) data(off int) *byte {
-	return (*byte)(add(unsafe.Pointer(f.bytes), uintptr(off)))
+func (n name) tag() string {
+	tl := n.tagLen()
+	if tl == 0 {
+		return ""
+	}
+	nl := n.nameLen()
+	var b string
+	hdr := (*stringStruct)(unsafe.Pointer(&b))
+	hdr.str = unsafe.Pointer(n.data(3+nl+2))
+	hdr.len = tl
+	return b
+}
+
+func (n name) tagLen() int {
+	if *n.data(0) & (1<<1) == 0 {
+		return 0
+	}
+	off := 3 + n.nameLen()
+	return int(uint16(*n.data(off)) << 8 | uint16(*n.data(off+1)))
+}
+
+func (n name) nameLen() int {
+	return int(uint16(*n.data(1))<<8 | uint16(*n.data(2)))
+}
+
+func (n name) data(off int) *byte {
+	return (*byte)(add(unsafe.Pointer(n.bytes), uintptr(off)))
 }
 
 
-func (f name) name() string {
-	nl := int(uint16(*f.data(1))<<8 | uint16(*f.data(2)))
+func (n name) name() string {
+	nl := int(uint16(*n.data(1))<<8 | uint16(*n.data(2)))
 	var b string
 	hdr := (*stringStruct)(unsafe.Pointer(&b))
-	hdr.str = unsafe.Pointer(f.data(3))
+	hdr.str = unsafe.Pointer(n.data(3))
 	hdr.len = nl
 	return b
 }
@@ -151,12 +181,12 @@ func Field(val Value, i int) Value {
 		ptr := add(val.ptr, f.offset())
 		switch reflect.Kind(f.typ.kind & kindMask) {
 		case reflect.String:
-			fmt.Println(f.name.name(), resolveNameOff(unsafe.Pointer(f.typ), int32(f.typ.str)).name(), *(*string)(ptr))
+			fmt.Println(f.name.name(), resolveNameOff(unsafe.Pointer(f.typ), int32(f.typ.str)).name(), *(*string)(ptr), f.name.tag())
 		case reflect.Int:
 			*(*int)(ptr) = int(31)
-			fmt.Println(f.name.name(), resolveNameOff(unsafe.Pointer(f.typ), int32(f.typ.str)).name(), *(*int64)(ptr))
+			fmt.Println(f.name.name(), resolveNameOff(unsafe.Pointer(f.typ), int32(f.typ.str)).name(), *(*int64)(ptr), f.name.tag())
 		default:
-			fmt.Println(f.name.name(), resolveNameOff(unsafe.Pointer(f.typ), int32(f.typ.str)).name())
+			fmt.Println(f.name.name(), resolveNameOff(unsafe.Pointer(f.typ), int32(f.typ.str)).name(), f.name.tag())
 		}
 	}
 	return Value{}
