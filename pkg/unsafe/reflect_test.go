@@ -15,7 +15,7 @@ func TestMe(t *testing.T) {
 }
 
 func TestTags(t *testing.T) {
-	person := &Person{Name: "Lasse", Age: 23, Twitter: "ifndef_lmj"}
+	person := Person{Name: "Lasse", Age: 23, Twitter: "ifndef_lmj"}
 	v := ValueOf(person)
 	tags, err := GetTags(v)
 	if err != nil {

@@ -173,9 +173,13 @@ func GetTags(val Value) (map[string]Tag, error) {
 	if ok {
 		return tags, nil
 	}
-	// val := *(*Value)(unsafe.Pointer(&v))
-	ptrtt := (*ptrType)(unsafe.Pointer(val.typ)).elem
-	tt := (*structType)(unsafe.Pointer(ptrtt))
+	var tt *structType
+	if val.kind() == reflect.Ptr {
+		ptrtt := (*ptrType)(unsafe.Pointer(val.typ)).elem
+		tt = (*structType)(unsafe.Pointer(ptrtt))
+	} else {
+		tt = (*structType)(unsafe.Pointer(val.typ))
+	}
 
 	tags = make(map[string]Tag, 0)
 	for i := 0; i < len(tt.fields); i++ {
