@@ -2,6 +2,7 @@ package unsafe
 
 import (
 	"fmt"
+	"github.com/Pungyeon/required/pkg/json"
 	"reflect"
 	"testing"
 	"unsafe"
@@ -22,6 +23,24 @@ func TestParseObject(t *testing.T) {
 		t.Fatal("wrong name", human)
 	}
 	fmt.Println(human)
+}
+
+func BenchmarkUnmarshalUnsafe(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var human Human
+		if err := Unmarshal([]byte(`{"name": "lasse", "age": 30, "data": 9}`), &human); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkUnmarshal(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var human Human
+		if err := json.Unmarshal([]byte(`{"name": "lasse", "age": 30, "data": 9}`), &human); err != nil {
+			b.Fatal(err)
+		}
+	}
 }
 
 func TestMe(t *testing.T) {

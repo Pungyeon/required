@@ -388,7 +388,6 @@ func (p *parser) parse(val Value) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(tkn)
 		switch tkn.Type {
 		case token.OpenCurly:
 			return p.parseObject(val)
@@ -439,7 +438,6 @@ func (p *parser) parseObject(val Value) error {
 		}
 
 		f := &tt.fields[tag.FieldIndex]
-		fmt.Println(f.typ.Kind())
 		ptr := add(val.ptr, f.offset())
 
 		tkn, err = p.lexer.Next()
