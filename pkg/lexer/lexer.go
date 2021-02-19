@@ -2,7 +2,7 @@ package lexer
 
 import (
 	"fmt"
-	"github.com/Pungyeon/required/pkg/unsafe"
+	"github.com/Pungyeon/required/pkg/convert"
 	"io"
 	"io/ioutil"
 
@@ -32,7 +32,7 @@ func NewLexer(input []byte) *Lexer {
 }
 
 func (l *Lexer) Previous() string {
-	return unsafe.BytesToString(l.input[max(0, l.index-100):l.index])
+	return convert.BytesToString(l.input[max(0, l.index-100):l.index])
 }
 
 func max(a, b int) int {

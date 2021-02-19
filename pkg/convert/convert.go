@@ -1,4 +1,4 @@
-package unsafe
+package convert
 
 import (
 	"unsafe"

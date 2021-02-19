@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/Pungyeon/required/pkg/unsafe"
+	"github.com/Pungyeon/required/pkg/convert"
 	"reflect"
 	"strconv"
 )
@@ -175,7 +175,7 @@ func (token Token) AsValue(vt reflect.Type) (reflect.Value, error) {
 	val := reflect.New(vt).Elem()
 	switch token.Type {
 	case String:
-		val.SetString(unsafe.BytesToString(token.Value))
+		val.SetString(convert.BytesToString(token.Value))
 		return val, nil
 	case Integer:
 		n, err := Ttoi(token)
@@ -185,7 +185,7 @@ func (token Token) AsValue(vt reflect.Type) (reflect.Value, error) {
 		val.SetInt(n)
 		return val, err
 	case Float:
-		f, err := strconv.ParseFloat(unsafe.BytesToString(token.Value), 64)
+		f, err := strconv.ParseFloat(convert.BytesToString(token.Value), 64)
 		if err != nil {
 			return val, err
 		}
@@ -262,11 +262,11 @@ func (token Token) ToValue() (reflect.Value, error) {
 	switch token.Type {
 	case String:
 		val := reflect.New(ReflectTypeString).Elem()
-		val.SetString(unsafe.BytesToString(token.Value))
+		val.SetString(convert.BytesToString(token.Value))
 		return val, nil
 	case Integer:
 		val := reflect.New(ReflectTypeInteger).Elem()
-		n, err := strconv.ParseInt(unsafe.BytesToString(token.Value), 10, 64)
+		n, err := strconv.ParseInt(convert.BytesToString(token.Value), 10, 64)
 		if err != nil {
 			return val, err
 		}
@@ -274,7 +274,7 @@ func (token Token) ToValue() (reflect.Value, error) {
 		return val, err
 	case Float:
 		val := reflect.New(ReflectTypeFloat).Elem()
-		f, err := strconv.ParseFloat(unsafe.BytesToString(token.Value), 64)
+		f, err := strconv.ParseFloat(convert.BytesToString(token.Value), 64)
 		if err != nil {
 			return val, err
 		}
@@ -307,7 +307,7 @@ func (token Token) String() string {
 }
 
 func (token Token) ToString() string {
-	return unsafe.BytesToString(token.Value)
+	return convert.BytesToString(token.Value)
 }
 
 type Tokens []Token

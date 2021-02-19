@@ -1,8 +1,12 @@
 package unsafe
 
 import (
+	"errors"
 	"fmt"
+	"github.com/Pungyeon/required/pkg/lexer"
+	"github.com/Pungyeon/required/pkg/token"
 	"reflect"
+	"strconv"
 	"unsafe"
 )
 
@@ -26,7 +30,7 @@ type Value struct {
 }
 
 func (v Value) Type() string {
-	return resolveNameOff(unsafe.Pointer(v.typ), int32(v.typ.str)).name()
+	return v.typ.Type()
 }
 
 type flag uintptr
@@ -327,6 +331,15 @@ type rtype struct {
 	str       nameOff // string form
 	ptrToThis typeOff // type for pointer to this type, may be zero
 }
+
+func (r *rtype) Kind() reflect.Kind {
+	return reflect.Kind(r.kind & kindMask)
+}
+
+func (r *rtype) Type() string {
+	return resolveNameOff(unsafe.Pointer(r), int32(r.str)).name()
+}
+
 func fromString(input string, index int) (Tag, error) {
 	tag := Tag{
 		FieldIndex: index,
@@ -359,3 +372,136 @@ func indexOfNextTag(input string, current int) int {
 	}
 	return current
 }
+
+func Unmarshal(data []byte, v interface{}) error {
+	p := &parser{ lexer: lexer.NewLexer(data) }
+	return p.parse(ValueOf(v))
+}
+
+type parser struct {
+	lexer *lexer.Lexer
+}
+
+func (p *parser) parse(val Value) error {
+	for {
+		tkn, err := p.lexer.Next()
+		if err != nil {
+			return err
+		}
+		fmt.Println(tkn)
+		switch tkn.Type {
+		case token.OpenCurly:
+			return p.parseObject(val)
+			//case reflect.String:
+			//case reflect.Int, reflect.Int32, reflect.Int64, reflect.Int8, reflect.Int16:
+			//case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			//case reflect.Float32, reflect.Float64:
+			//case reflect.Bool:
+			//	return nil
+			//}
+		}
+		return nil
+	}
+}
+
+func (p *parser) parseObject(val Value) error {
+	tags, err := GetTags(val)
+	if err != nil {
+		return err
+	}
+	var tt *structType
+	if val.kind() == reflect.Ptr {
+		ptrtt := (*ptrType)(unsafe.Pointer(val.typ)).elem
+		tt = (*structType)(unsafe.Pointer(ptrtt))
+	} else {
+		tt = (*structType)(unsafe.Pointer(val.typ))
+	}
+	for {
+		tkn, err := p.lexer.Next()
+		if err != nil {
+			return err
+		}
+		if tkn.Type != token.String {
+			return errors.New("expected field string")
+		}
+		field := *(*string)(unsafe.Pointer(&tkn.Value))
+		tkn, err = p.lexer.Next()
+		if err != nil {
+			return err
+		}
+
+		if tkn.Type != token.Colon {
+			return errors.New("expected comma")
+		}
+		tag, ok := tags[field]
+		if !ok {
+			return errors.New("no such field")
+		}
+
+		f := &tt.fields[tag.FieldIndex]
+		fmt.Println(f.typ.Kind())
+		ptr := add(val.ptr, f.offset())
+
+		tkn, err = p.lexer.Next()
+		if err != nil {
+			return err
+		}
+		switch f.typ.Kind() {
+		case reflect.String:
+			*(*string)(ptr) = *(*string)(unsafe.Pointer(&tkn.Value))
+		case reflect.Int, reflect.Float32, reflect.Float64,
+			reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				i, err := strconv.ParseInt(*(*string)(unsafe.Pointer(&tkn.Value)), 10, 64)
+				if err != nil {
+					return err
+				}
+				SetInt(ptr, f.typ.Kind(), i)
+		default:
+			return errors.New("unsupported type")
+		}
+
+		tkn, err = p.lexer.Next()
+		if err != nil {
+			return err
+		}
+		if tkn.Type != token.Comma {
+			if tkn.Type != token.ClosingCurly {
+				return errors.New("what the hell? ")
+			}
+			return nil
+		}
+	}
+}
+
+func SetInt(ptr unsafe.Pointer, kind reflect.Kind, val int64) {
+	switch kind {
+	case reflect.Int:
+		*(*int)(ptr) = int(val)
+	case reflect.Int8:
+		*(*int8)(ptr) = int8(val)
+	case reflect.Int16:
+		*(*int16)(ptr) = int16(val)
+	case reflect.Int32:
+		*(*int32)(ptr) = int32(val)
+	case reflect.Int64:
+		*(*int64)(ptr) = val
+	case reflect.Uint:
+		*(*uint)(ptr) = uint(val)
+	case reflect.Uint8:
+		*(*uint8)(ptr) = uint8(val)
+	case reflect.Uint16:
+		*(*uint16)(ptr) = uint16(val)
+	case reflect.Uint32:
+		*(*uint32)(ptr) = uint32(val)
+	case reflect.Uint64:
+		*(*uint64)(ptr) = uint64(val)
+	default:
+		panic("shit")
+	}
+}
+
+
+
+
+
