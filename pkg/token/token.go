@@ -310,6 +310,17 @@ func (token Token) ToString() string {
 	return convert.BytesToString(token.Value)
 }
 
+func (token Token) Bool() (bool, error) {
+	switch token.Value[0] {
+	case 't':
+		return true, nil
+	case 'f':
+		return false, nil
+	default:
+		return false, Error(ErrInvalidValue, token.String())
+	}
+}
+
 type Tokens []Token
 
 func (tokens Tokens) Join(sep string) string {

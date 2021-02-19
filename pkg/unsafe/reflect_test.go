@@ -2,6 +2,7 @@ package unsafe
 
 import (
 	"fmt"
+	"github.com/Pungyeon/required/pkg/json"
 	"reflect"
 	"testing"
 	"unsafe"
@@ -11,11 +12,42 @@ type Human struct {
 	Name string `json:"name"`
 	Age int `json:"age"`
 	Data uint8
+	Address Address
+	Alive bool `json:"alive"`
 }
+
+var example = []byte(`{
+	"name": "lasse",
+	"age": 30,
+	"data": 9,
+	"address": {
+		"street": "privet drive"
+	},
+	"alive": true
+}`)
+
+func BenchmarkParseObjectUnsafe(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var human Human
+		if err := Unmarshal(example, &human); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkParseObject(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var human Human
+		if err := json.Unmarshal(example, &human); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 
 func TestParseObject(t *testing.T) {
 	var human Human
-	if err := Unmarshal([]byte(`{"name": "lasse", "age": 30, "data": 9}`), &human); err != nil {
+	if err := Unmarshal(example, &human); err != nil {
 		t.Fatal(err)
 	}
 	if human.Name != "lasse" {

@@ -178,7 +178,7 @@ func GetTags(val Value) (map[string]Tag, error) {
 		return tags, nil
 	}
 	var tt *structType
-	if val.kind() == reflect.Ptr {
+	if val.typ.Kind() == reflect.Ptr {
 		ptrtt := (*ptrType)(unsafe.Pointer(val.typ)).elem
 		tt = (*structType)(unsafe.Pointer(ptrtt))
 	} else {
@@ -235,8 +235,13 @@ func Name(val Value, i int) Value {
 
 func Field(val Value, i int) Value {
 	// check the kind and ensure that it's not pointer ?
-	ptrtt := (*ptrType)(unsafe.Pointer(val.typ)).elem
-	tt := (*structType)(unsafe.Pointer(ptrtt))
+	var tt *structType
+	if val.typ.Kind() == reflect.Ptr {
+		ptrtt := (*ptrType)(unsafe.Pointer(val.typ)).elem
+		tt = (*structType)(unsafe.Pointer(ptrtt))
+	} else {
+		tt = (*structType)(unsafe.Pointer(val.typ))
+	}
 
 	for i := 0; i < len(tt.fields); i++ {
 		f := &tt.fields[i]
@@ -388,7 +393,6 @@ func (p *parser) parse(val Value) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(tkn)
 		switch tkn.Type {
 		case token.OpenCurly:
 			return p.parseObject(val)
@@ -410,7 +414,7 @@ func (p *parser) parseObject(val Value) error {
 		return err
 	}
 	var tt *structType
-	if val.kind() == reflect.Ptr {
+	if val.typ.Kind() == reflect.Ptr {
 		ptrtt := (*ptrType)(unsafe.Pointer(val.typ)).elem
 		tt = (*structType)(unsafe.Pointer(ptrtt))
 	} else {
@@ -439,7 +443,6 @@ func (p *parser) parseObject(val Value) error {
 		}
 
 		f := &tt.fields[tag.FieldIndex]
-		fmt.Println(f.typ.Kind())
 		ptr := add(val.ptr, f.offset())
 
 		tkn, err = p.lexer.Next()
@@ -447,6 +450,15 @@ func (p *parser) parseObject(val Value) error {
 			return err
 		}
 		switch f.typ.Kind() {
+		case reflect.Map:
+		case reflect.Array, reflect.Slice:
+		case reflect.Ptr:
+		case reflect.Bool:
+			b, err := tkn.Bool()
+			if err != nil {
+				return err
+			}
+			*(*bool)(ptr) = *(*bool)(unsafe.Pointer(&b))
 		case reflect.String:
 			*(*string)(ptr) = *(*string)(unsafe.Pointer(&tkn.Value))
 		case reflect.Int, reflect.Float32, reflect.Float64,
@@ -457,6 +469,13 @@ func (p *parser) parseObject(val Value) error {
 					return err
 				}
 				SetInt(ptr, f.typ.Kind(), i)
+		case reflect.Struct:
+			if tkn.Type != token.OpenCurly {
+				return errors.New("object must start with {")
+			}
+			if err := p.parseObject(Value{f.typ, ptr, val.flag}); err != nil {
+				return err
+			}
 		default:
 			return errors.New("unsupported type")
 		}
