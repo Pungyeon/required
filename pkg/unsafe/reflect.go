@@ -265,6 +265,17 @@ type ptrType struct {
 	elem *rtype // pointer element (pointed at) type
 }
 
+type sliceType struct {
+	rtype
+	elem *rtype // slice element type
+}
+
+type Slice struct {
+	Data unsafe.Pointer
+	Len  int
+	Cap  int
+}
+
 type hex uint64
 
 type stringStruct struct {
@@ -388,24 +399,111 @@ type parser struct {
 }
 
 func (p *parser) parse(val Value) error {
+	// if interface do some stuff here
 	for {
 		tkn, err := p.lexer.Next()
 		if err != nil {
 			return err
 		}
-		switch tkn.Type {
-		case token.OpenCurly:
-			return p.parseObject(val)
-			//case reflect.String:
-			//case reflect.Int, reflect.Int32, reflect.Int64, reflect.Int8, reflect.Int16:
-			//case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			//case reflect.Float32, reflect.Float64:
-			//case reflect.Bool:
-			//	return nil
-			//}
-		}
-		return nil
+		return p.setValue(val, tkn)
 	}
+}
+
+func (p *parser) setValue(val Value, tkn token.Token) error {
+	switch tkn.Type {
+	case token.OpenCurly:
+		return p.parseObject(val)
+	case token.OpenBrace:
+		return p.parseArray(val)
+	case token.Boolean:
+		b, err := tkn.Bool()
+		if err != nil {
+		return err
+	}
+		*(*bool)(val.ptr) = b
+	case token.String:
+		*(*string)(val.ptr) = tkn.ToString()
+	case token.Integer:
+		var tt *rtype
+		if val.typ.Kind() == reflect.Ptr {
+		tt = (*ptrType)(unsafe.Pointer(val.typ)).elem
+	} else {
+		tt = val.typ
+	}
+		i, err := strconv.ParseInt(*(*string)(unsafe.Pointer(&tkn.Value)), 10, 64)
+		if err != nil {
+		return err
+	}
+		SetInt(val.ptr, tt.Kind(), i)
+	case token.Float:
+		var tt *rtype
+		if val.typ.Kind() == reflect.Ptr {
+		tt = (*ptrType)(unsafe.Pointer(val.typ)).elem
+		} else {
+			tt = val.typ
+		}
+			f, err := token.Ttof(tkn)
+			if  err != nil {
+			return err
+		}
+			// maybe check if it's float at all?
+			if tt.Kind() == reflect.Float32 {
+			*(*float32)(val.ptr) = float32(f)
+		} else {
+			*(*float64)(val.ptr) = f
+		}
+	}
+	return nil
+}
+
+func (p *parser) parseArray(val Value) error {
+	var tt *sliceType
+	if val.typ.Kind() == reflect.Ptr {
+		ptr := (*ptrType)(unsafe.Pointer(val.typ))
+		tt = (*sliceType)(unsafe.Pointer(ptr.elem))
+	} else {
+		tt = (*sliceType)(unsafe.Pointer(val.typ))
+	}
+
+	s := (*Slice)(val.ptr)
+	length := 3
+	*(*[]*rtype)(val.ptr) = make([]*rtype, length)
+	var i int
+	for {
+		tkn, err := p.lexer.Next()
+		if err != nil {
+			return err
+		}
+		if tkn.Type == token.ClosingBrace {
+			return nil
+		}
+		if tkn.Type == token.Comma {
+			continue
+		}
+		if i >= length {
+			length *= 2
+			tmp := make([]*rtype, length)
+			copy(tmp, *(*[]*rtype)(val.ptr))
+			*(*[]*rtype)(val.ptr) = tmp
+		}
+		index := getSliceIndex(s, tt, i)
+		if err := p.setValue(Value{tt.elem, index, val.flag}, tkn); err != nil {
+			return err
+		}
+		i++
+	}
+}
+
+func grow(arr []*rtype, length int, index int) []*rtype {
+	if index >= length {
+		return make([]*rtype, length*2)
+	}
+	return arr
+}
+
+
+func getSliceIndex(slice *Slice, tt *sliceType, index int) unsafe.Pointer {
+	return add(slice.Data, uintptr(index)*tt.elem.size)
 }
 
 func (p *parser) parseObject(val Value) error {
@@ -452,6 +550,9 @@ func (p *parser) parseObject(val Value) error {
 		switch f.typ.Kind() {
 		case reflect.Map:
 		case reflect.Array, reflect.Slice:
+			if err := p.parseArray(Value{f.typ, ptr, val.flag}); err != nil {
+				return err
+			}
 		case reflect.Ptr:
 		case reflect.Bool:
 			b, err := tkn.Bool()
@@ -486,7 +587,7 @@ func (p *parser) parseObject(val Value) error {
 		}
 		if tkn.Type != token.Comma {
 			if tkn.Type != token.ClosingCurly {
-				return errors.New("what the hell? ")
+				return fmt.Errorf("expected curly: %s", p.lexer.Previous())
 			}
 			return nil
 		}
@@ -515,8 +616,10 @@ func SetInt(ptr unsafe.Pointer, kind reflect.Kind, val int64) {
 		*(*uint32)(ptr) = uint32(val)
 	case reflect.Uint64:
 		*(*uint64)(ptr) = uint64(val)
+	case reflect.Interface:
+		*(*interface{})(ptr) = int(val)
 	default:
-		panic("shit")
+		panic(fmt.Sprintf("cannot set integer value of kind: %v", kind))
 	}
 }
 

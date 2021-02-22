@@ -13,6 +13,7 @@ type Human struct {
 	Age int `json:"age"`
 	Data uint8
 	Address Address
+	Array []int
 	Alive bool `json:"alive"`
 }
 
@@ -23,6 +24,7 @@ var example = []byte(`{
 	"address": {
 		"street": "privet drive"
 	},
+	"array": [1, 2, 3, 4, 5, 6],
 	"alive": true
 }`)
 
@@ -44,6 +46,75 @@ func BenchmarkParseObject(b *testing.B) {
 	}
 }
 
+func TestParseArray(t *testing.T) {
+	arr := []int{
+		1, 2, 3, 4, 5,
+	}
+	val := ValueOf(&arr)
+	fmt.Println(val.typ.Kind())
+
+	var tt *sliceType
+	if val.typ.Kind() == reflect.Ptr {
+		ptr := (*ptrType)(unsafe.Pointer(val.typ))
+		tt = (*sliceType)(unsafe.Pointer(ptr.elem))
+	} else {
+		tt = (*sliceType)(unsafe.Pointer(val.typ))
+	}
+
+	s := (*Slice)(val.ptr)
+	fmt.Println(s.Len)
+
+	for i := 0; i < s.Len; i++ {
+		v := add(s.Data, uintptr(i)*tt.elem.size)
+		fmt.Println(*(*int)(v))
+	}
+
+	*(*[]*rtype)(val.ptr) = make([]*rtype, 2)
+
+	v := getSliceIndex(s, tt, 1)
+	*(*int)(v) = 2
+
+	v = getSliceIndex(s, tt, 0)
+	*(*int)(v) = 1
+	//reflect.MakeSlice(reflect.Int, 1).Index()
+	//*(*[]int)(val.ptr) = []int{1, 2, 3}
+	fmt.Println(arr)
+}
+
+
+func TestParsePrimitive(t *testing.T) {
+	var i int
+	if err := Unmarshal([]byte(`32`), &i); err != nil {
+		t.Fatal(err)
+	}
+	if i != 32 {
+		t.Fatal(i)
+	}
+
+	var s string
+	if err := Unmarshal([]byte(`"dingeling"`), &s); err != nil {
+		t.Fatal(err)
+	}
+	if s != "dingeling" {
+		t.Fatal(s)
+	}
+
+	var float float32
+	if err := Unmarshal([]byte(`3.2`), &float); err != nil {
+		t.Fatal(err)
+	}
+	if float != 3.2 {
+		t.Fatal(float)
+	}
+
+	var b bool
+	if err := Unmarshal([]byte(`true`), &b); err != nil {
+		t.Fatal(err)
+	}
+	if !b {
+		t.Fatal(b)
+	}
+}
 
 func TestParseObject(t *testing.T) {
 	var human Human
@@ -56,23 +127,6 @@ func TestParseObject(t *testing.T) {
 	fmt.Println(human)
 }
 
-func BenchmarkUnmarshalUnsafe(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		var human Human
-		if err := Unmarshal([]byte(`{"name": "lasse", "age": 30, "data": 9}`), &human); err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func BenchmarkUnmarshal(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		var human Human
-		if err := json.Unmarshal([]byte(`{"name": "lasse", "age": 30, "data": 9}`), &human); err != nil {
-			b.Fatal(err)
-		}
-	}
-}
 
 func TestMe(t *testing.T) {
 	person := &Person{Name: "Lasse", Age: 23, Twitter: "ifndef_lmj"}
