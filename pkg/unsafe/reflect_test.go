@@ -46,6 +46,9 @@ func BenchmarkParseObject(b *testing.B) {
 	}
 }
 
+func TestParseMap(t *testing.T) {
+}
+
 func TestParseArray(t *testing.T) {
 	arr := []int{
 		1, 2, 3, 4, 5,
