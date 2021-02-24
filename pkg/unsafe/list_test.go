@@ -104,17 +104,6 @@ func set(kind reflect.Kind, a, b unsafe.Pointer) {
 	}
 }
 
-//func (list *List) Append(v interface{}) error {
-//	value := ValueOf(v)
-//	if value.Type() != list._type {
-//		return fmt.Errorf(
-//			"cannot append type of %s to list of type %s",
-//			value.Type(), list._type,
-//		)
-//	}
-//
-//}
-
 func WrapList(v interface{}) (*List, error) {
 	value := ValueOf(v)
 	if value.typ.Kind() != reflect.Slice && value.typ.Kind() != reflect.Array {
@@ -148,6 +137,76 @@ func catch(t *testing.T, errs ...error) {
 	}
 }
 
+type Equality uint8
+
+const (
+	Error Equality = iota
+	Equal
+	Greater
+	Lesser
+)
+
+
+type Comparer interface {
+	Compare(interface{}) Equality
+}
+
+type Rectangle struct {
+	X, Y int
+}
+
+func (r Rectangle) Area() int {
+	return r.X * r.Y
+}
+
+func (r Rectangle) Compare(v interface{}) Equality {
+	value, ok := v.(Rectangle)
+	if !ok {
+		return Error
+	}
+	a, b := r.Area(), value.Area()
+	if a == b {
+		return Equal
+	}
+	if a > b {
+		return Greater
+	} else {
+		return Lesser
+	}
+}
+
+type Integer struct {
+	value int
+}
+
+func (integer Integer) Compare(v interface{}) Equality {
+	value, ok := v.(Integer)
+	if !ok {
+		return Error
+	}
+
+	if value.value == integer.value {
+		return Equal
+	}
+	if integer.value > value.value {
+		return Greater
+	} else {
+		return Lesser
+	}
+}
+
+func TestInterface(t *testing.T) {
+	val := ValueOf(Integer{})
+	fmt.Println(val.Type())
+	u := val.typ.uncommon()
+
+	for _, method := range u.methods() {
+		fmt.Println(method)
+		fmt.Println(resolveNameOff(unsafe.Pointer(u), int32(method.name)).name())
+		fmt.Println(resolveTypeOff(unsafe.Pointer(u), method.mtyp))
+	}
+}
+
 func TestList(t *testing.T) {
 	var arr []int
 	l, err := WrapList(arr)
@@ -161,9 +220,9 @@ func TestList(t *testing.T) {
 		l.Append(2),
 		l.Append(1),
 		l.Append(3),
+		l.Close(),
 		)
 	fmt.Println(arr)
 	l.Sort()
 	fmt.Println(arr)
-	l.Close()
 }

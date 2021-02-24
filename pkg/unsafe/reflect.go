@@ -21,6 +21,9 @@ const (
 	flagMethod = 1 << 9
 	flagMethodShift = 10
 	flagRO = flagStickyRO | flagEmbedRO
+
+	tflagExtraStar tflag = 1 << 1
+	tflagUncommon tflag = 1 << 0
 )
 
 type Value struct {
@@ -51,7 +54,10 @@ var firstmoduledata Moduledata
 
 type Moduledata struct {
 	pclntable    []byte
-	ftab         []Functab
+	ftab         []struct{
+		entry uintptr
+		funcoff uintptr
+	}
 	filetab      []uint32
 	findfunctab  uintptr
 	minpc, maxpc uintptr
@@ -62,18 +68,54 @@ type Moduledata struct {
 	bss, ebss             uintptr
 	noptrbss, enoptrbss   uintptr
 	end, gcdata, gcbss    uintptr
-	types, etypes uintptr
+	types, etypes         uintptr
 
-	// Original type was []*_type
-	typelinks []interface{}
+	textsectmap []struct {
+		vaddr    uintptr // prelinked section vaddr
+		length   uintptr // section length
+		baseaddr uintptr // relocated section address
+	}
+	typelinks   []int32 // offsets from types
+	itablinks   []*itab
 
-	modulename string
-	// Original type was []modulehash
-	modulehashes []interface{}
+	ptab []ptabEntry
 
-	gcdatamask, gcbssmask Bitvector
+	pluginpath string
+	pkghashes  []modulehash
+
+	modulename   string
+	modulehashes []modulehash
+
+	hasmain uint8 // 1 if module contains the main function, 0 otherwise
+
+	gcdatamask, gcbssmask bitvector
+
+	typemap map[typeOff]*rtype // offset to *_rtype in previous module
+
+	bad bool // module failed to load and should be ignored
 
 	next *Moduledata
+
+}
+
+type ptabEntry struct {
+	name nameOff
+	typ  typeOff
+}
+
+// ../cmd/compile/internal/gc/reflect.go:/^func.dumptabs.
+type itab struct {
+	inter *interfaceType
+	_type *rtype
+	hash  uint32 // copy of _type.hash. Used for type switches.
+	_     [4]byte
+	fun   [1]uintptr // variable sized. fun[0]==0 means _type does not implement inter.
+}
+
+type modulehash struct {
+	modulename   string
+	linktimehash string
+	runtimehash  *string
 }
 
 type Functab struct {
@@ -81,17 +123,12 @@ type Functab struct {
 	funcoff uintptr
 }
 
-type Bitvector struct {
+type bitvector struct {
 	n        int32 // # of bits
 	bytedata *uint8
 }
 
 func ValueOf(v interface{}) Value {
-	val := reflect.ValueOf(v)
-	//val.NumField()
-	//val.Method(0)
-	//val.Type().Field(0)
-	val.Type().Name()
 	t := (*emptyInterface)(unsafe.Pointer(&v))
 	f := t.typ.kind & kindMask
 	return Value{t.typ, t.word, flag(f)}
@@ -270,6 +307,17 @@ type sliceType struct {
 	elem *rtype // slice element type
 }
 
+type interfaceType struct {
+	rtype
+	pkgPath name      // import path
+	methods []imethod // sorted by hash
+}
+
+type imethod struct {
+	name nameOff // name of method
+	typ  typeOff // .(*FuncType) underneath
+}
+
 type Slice struct {
 	Data unsafe.Pointer
 	Len  int
@@ -282,6 +330,32 @@ type stringStruct struct {
 	str unsafe.Pointer
 	len int
 }
+
+func resolveTypeOff(ptrInModule unsafe.Pointer, off typeOff) *rtype {
+	if off == 0 {
+		return nil
+	}
+	base := uintptr(ptrInModule)
+	var md *Moduledata
+	for next := &firstmoduledata; next != nil; next = next.next {
+		if base >= next.types && base < next.etypes {
+			md = next
+			break
+		}
+	}
+	if md == nil {
+		panic("it's not worth it")
+	}
+	if t := md.typemap[off]; t != nil {
+		return t
+	}
+	res := md.types + uintptr(off)
+	if res > md.etypes {
+		println("runtime: typeOff", hex(off), "out of range", hex(md.types), "-", hex(md.etypes))
+	}
+	return (*rtype)(unsafe.Pointer(res))
+}
+
 
 func resolveNameOff(ptr unsafe.Pointer, off int32) name {
 	base := uintptr(ptr)
@@ -330,6 +404,7 @@ type emptyInterface struct {
 
 type nameOff int32
 type typeOff int32
+type textOff int32
 type tflag uint8
 
 type rtype struct {
@@ -353,7 +428,63 @@ func (r *rtype) Kind() reflect.Kind {
 }
 
 func (r *rtype) Type() string {
-	return resolveNameOff(unsafe.Pointer(r), int32(r.str)).name()
+	s := resolveNameOff(unsafe.Pointer(r), int32(r.str)).name()
+	if r.tflag&tflagExtraStar != 0 {
+		return s[1:]
+	}
+	return s
+}
+
+func (r *rtype) nameOff(off nameOff) string {
+	return resolveNameOff(unsafe.Pointer(r), int32(off)).name()
+}
+
+func (r *rtype) typeOff(off typeOff) *rtype {
+	return resolveTypeOff(unsafe.Pointer(r), off)
+}
+
+func (r *rtype) uncommon() *uncommonType {
+	if r.tflag&tflagUncommon == 0 {
+		return nil
+	}
+	switch r.Kind() {
+	case reflect.Struct:
+		return &(*structTypeUncommon)(unsafe.Pointer(r)).u
+	default:
+		type u struct {
+			rtype
+			u uncommonType
+		}
+		return &(*u)(unsafe.Pointer(r)).u
+	}
+}
+
+type uncommonType struct {
+	pkgPath nameOff // import path; empty for built-in types like int, string
+	mcount  uint16  // number of methods
+	xcount  uint16  // number of exported methods
+	moff    uint32  // offset from this uncommontype to [mcount]method
+	_       uint32  // unused
+}
+
+func (t *uncommonType) methods() []method {
+	if t.mcount == 0 {
+		return nil
+	}
+	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff)))[:t.mcount:t.mcount]
+}
+
+// Method on non-interface type
+type method struct {
+	name nameOff // name of method
+	mtyp typeOff // method type (without receiver)
+	ifn  textOff // fn used in interface call (one-word receiver)
+	tfn  textOff // fn used for normal method call
+}
+
+type structTypeUncommon struct {
+	structType
+	u uncommonType
 }
 
 func fromString(input string, index int) (Tag, error) {
