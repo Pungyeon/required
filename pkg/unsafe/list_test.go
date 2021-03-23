@@ -159,6 +159,14 @@ func (r Rectangle) Area() int {
 	return r.X * r.Y
 }
 
+func (r Rectangle) Multiply(x int) int {
+	return r.Area() * x
+}
+
+func (r Rectangle) Ding() Equality {
+	return Lesser
+}
+
 func (r Rectangle) Compare(v interface{}) Equality {
 	value, ok := v.(Rectangle)
 	if !ok {
@@ -195,16 +203,12 @@ func (integer Integer) Compare(v interface{}) Equality {
 	}
 }
 
-func TestInterface(t *testing.T) {
-	val := ValueOf(Integer{})
-	fmt.Println(val.Type())
-	u := val.typ.uncommon()
+func newRect() Comparer {
+	return &Rectangle{}
+}
 
-	for _, method := range u.methods() {
-		fmt.Println(method)
-		fmt.Println(resolveNameOff(unsafe.Pointer(u), int32(method.name)).name())
-		fmt.Println(resolveTypeOff(unsafe.Pointer(u), method.mtyp))
-	}
+func TestInterface(t *testing.T) {
+	fmt.Println(Implements(ValueOf(new(Comparer)), ValueOf(Rectangle{})))
 }
 
 func TestList(t *testing.T) {
@@ -225,4 +229,65 @@ func TestList(t *testing.T) {
 	fmt.Println(arr)
 	l.Sort()
 	fmt.Println(arr)
+}
+
+func asInterface(v interface{}) interface{} {
+	return v
+}
+
+func TestMe2(t *testing.T) {
+	t.Skip()
+	type Person struct {
+		Name string
+		Age int
+		Ding uint8
+	}
+
+	//ValueOf()
+	i := asInterface(Person{ Name: "Lasse", Age: 30, Ding: 2 })
+	r := (*emptyInterface)(unsafe.Pointer(&i))
+
+	fmt.Println(r.typ.kind)
+	fmt.Println(r.typ.Kind())
+}
+type iface struct { // `iface`
+	tab *struct { // `itab`
+		inter *struct { // `interfacetype`
+			typ struct { // `_type`
+				size       uintptr
+				ptrdata    uintptr
+				hash       uint32
+				tflag      tflag
+				align      uint8
+				fieldalign uint8
+				kind       uint8
+				equal func(unsafe.Pointer, unsafe.Pointer) bool
+				gcdata     *byte
+				str        nameOff
+				ptrToThis  typeOff
+			}
+			pkgpath name
+			mhdr    []struct { // `imethod`
+				name nameOff
+				ityp typeOff
+			}
+		}
+		_type *struct { // `_type`
+			size       uintptr
+			ptrdata    uintptr
+			hash       uint32
+			tflag      tflag
+			align      uint8
+			fieldalign uint8
+			kind       uint8
+			equal func(unsafe.Pointer, unsafe.Pointer) bool
+			gcdata     *byte
+			str        nameOff
+			ptrToThis  typeOff
+		}
+		hash uint32
+		_    [4]byte
+		fun  [1]uintptr
+	}
+	data unsafe.Pointer
 }

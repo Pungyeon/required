@@ -14,6 +14,7 @@ type Human struct {
 	Data uint8
 	Address Address
 	Array []int
+	Float float64
 	Alive bool `json:"alive"`
 }
 
@@ -25,6 +26,7 @@ var example = []byte(`{
 		"street": "privet drive"
 	},
 	"array": [1, 2, 3, 4, 5, 6],
+	"float": 3.2,
 	"alive": true
 }`)
 
@@ -126,6 +128,9 @@ func TestParseObject(t *testing.T) {
 	}
 	if human.Name != "lasse" {
 		t.Fatal("wrong name", human)
+	}
+	if human.Float != 3.2 {
+		t.Fatal("wrong float")
 	}
 	fmt.Println(human)
 }

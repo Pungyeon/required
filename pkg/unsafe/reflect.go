@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strconv"
 	"unsafe"
+	_ "unsafe"
 )
 
 const (
@@ -49,89 +50,42 @@ func (f flag) ro() flag {
 	return 0
 }
 
-//go:linkname firstmoduledata runtime.firstmoduledata
-var firstmoduledata Moduledata
-
-type Moduledata struct {
-	pclntable    []byte
-	ftab         []struct{
-		entry uintptr
-		funcoff uintptr
-	}
-	filetab      []uint32
-	findfunctab  uintptr
-	minpc, maxpc uintptr
-
-	text, etext           uintptr
-	noptrdata, enoptrdata uintptr
-	data, edata           uintptr
-	bss, ebss             uintptr
-	noptrbss, enoptrbss   uintptr
-	end, gcdata, gcbss    uintptr
-	types, etypes         uintptr
-
-	textsectmap []struct {
-		vaddr    uintptr // prelinked section vaddr
-		length   uintptr // section length
-		baseaddr uintptr // relocated section address
-	}
-	typelinks   []int32 // offsets from types
-	itablinks   []*itab
-
-	ptab []ptabEntry
-
-	pluginpath string
-	pkghashes  []modulehash
-
-	modulename   string
-	modulehashes []modulehash
-
-	hasmain uint8 // 1 if module contains the main function, 0 otherwise
-
-	gcdatamask, gcbssmask bitvector
-
-	typemap map[typeOff]*rtype // offset to *_rtype in previous module
-
-	bad bool // module failed to load and should be ignored
-
-	next *Moduledata
-
-}
-
-type ptabEntry struct {
-	name nameOff
-	typ  typeOff
-}
-
-// ../cmd/compile/internal/gc/reflect.go:/^func.dumptabs.
-type itab struct {
-	inter *interfaceType
-	_type *rtype
-	hash  uint32 // copy of _type.hash. Used for type switches.
-	_     [4]byte
-	fun   [1]uintptr // variable sized. fun[0]==0 means _type does not implement inter.
-}
-
-type modulehash struct {
-	modulename   string
-	linktimehash string
-	runtimehash  *string
-}
-
 type Functab struct {
 	entry   uintptr
 	funcoff uintptr
-}
-
-type bitvector struct {
-	n        int32 // # of bits
-	bytedata *uint8
 }
 
 func ValueOf(v interface{}) Value {
 	t := (*emptyInterface)(unsafe.Pointer(&v))
 	f := t.typ.kind & kindMask
 	return Value{t.typ, t.word, flag(f)}
+}
+
+func Implements(iface, val Value) bool {
+	tt := (*ptrType)(unsafe.Pointer(iface.typ))
+	ityp := (*interfaceType)(unsafe.Pointer(tt.elem))
+
+	v := *(*Value)(unsafe.Pointer(&val))
+	vtype := v.typ.uncommon()
+	_ = vtype
+
+	var i int
+	methods := vtype.methods()
+	for j := 0; j < int(vtype.mcount); j++ {
+		tm := ityp.methods[i]
+		vm := methods[j]
+
+		fmt.Println(ityp.nameOff(tm.name), "==", v.typ.nameOff(vm.name), ":",
+			ityp.typeOff(tm.typ) == v.typ.typeOff(vm.mtyp))
+
+		if ityp.typeOff(tm.typ) == v.typ.typeOff(vm.mtyp) {
+			i++
+			if i >= len(ityp.methods) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
@@ -324,54 +278,16 @@ type Slice struct {
 	Cap  int
 }
 
-type hex uint64
-
 type stringStruct struct {
 	str unsafe.Pointer
 	len int
 }
 
-func resolveTypeOff(ptrInModule unsafe.Pointer, off typeOff) *rtype {
-	if off == 0 {
-		return nil
-	}
-	base := uintptr(ptrInModule)
-	var md *Moduledata
-	for next := &firstmoduledata; next != nil; next = next.next {
-		if base >= next.types && base < next.etypes {
-			md = next
-			break
-		}
-	}
-	if md == nil {
-		panic("it's not worth it")
-	}
-	if t := md.typemap[off]; t != nil {
-		return t
-	}
-	res := md.types + uintptr(off)
-	if res > md.etypes {
-		println("runtime: typeOff", hex(off), "out of range", hex(md.types), "-", hex(md.etypes))
-	}
-	return (*rtype)(unsafe.Pointer(res))
-}
+//go:linkname resolveTypeOff runtime.resolveTypeOff
+func resolveTypeOff(unsafe.Pointer, typeOff) *rtype
 
-
-func resolveNameOff(ptr unsafe.Pointer, off int32) name {
-	base := uintptr(ptr)
-	for md := &firstmoduledata; md != nil; md = md.next {
-		if base >= md.types && base < md.etypes {
-			res := md.types + uintptr(off)
-			if res > md.etypes {
-				println("runtime: nameOff", hex(off), "out of range", hex(md.types), "-", hex(md.etypes))
-				panic("runtime: Name offset out of range")
-			}
-			return name{(*byte)(unsafe.Pointer(res))}
-		}
-	}
-	panic("oh no")
-	return name{}
-}
+//go:linkname resolveNameOff runtime.resolveNameOff
+func resolveNameOff(ptr unsafe.Pointer, off int32) name
 
 func Method(val Value, i int) Value {
 	// check if actual struct with method
@@ -541,8 +457,11 @@ func (p *parser) parse(val Value) error {
 }
 
 func (p *parser) setValue(val Value, tkn token.Token) error {
+	// TODO : handle interface
 	switch tkn.Type {
 	case token.OpenCurly:
+		fmt.Println(val.kind(), val.Type())
+		// This could be a map
 		return p.parseObject(val)
 	case token.OpenBrace:
 		return p.parseArray(val)
@@ -693,8 +612,13 @@ func (p *parser) parseObject(val Value) error {
 			*(*bool)(ptr) = *(*bool)(unsafe.Pointer(&b))
 		case reflect.String:
 			*(*string)(ptr) = *(*string)(unsafe.Pointer(&tkn.Value))
-		case reflect.Int, reflect.Float32, reflect.Float64,
-			reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		case reflect.Float32, reflect.Float64:
+			float, err := strconv.ParseFloat(*(*string)(unsafe.Pointer(&tkn.Value)), 64)
+			if err != nil {
+				return err
+			}
+			SetFloat(ptr, f.typ.Kind(), float)
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 				i, err := strconv.ParseInt(*(*string)(unsafe.Pointer(&tkn.Value)), 10, 64)
 				if err != nil {
@@ -722,6 +646,17 @@ func (p *parser) parseObject(val Value) error {
 			}
 			return nil
 		}
+	}
+}
+
+func SetFloat(ptr unsafe.Pointer, kind reflect.Kind, val float64) {
+	switch kind {
+	case reflect.Float32:
+		*(*float32)(ptr) = float32(val)
+	case reflect.Float64:
+		*(*float64)(ptr) = val
+	default:
+		panic("what did you just give me?")
 	}
 }
 
