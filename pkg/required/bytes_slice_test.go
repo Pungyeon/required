@@ -43,7 +43,6 @@ func TestByteSliceValidation(t *testing.T) {
 			err := Unmarshal(jsonb, &checker)
 			assertError(t, err, tf.err)
 
-
 			if !tf.assert(checker) {
 				t.Fatalf("Assertion Failed: %+v", checker)
 			}

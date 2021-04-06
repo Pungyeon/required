@@ -1,4 +1,8 @@
 # Required JSON tags
+
+[![GoDoc](https://godoc.org/github.com/Pungyeon/required?status.svg)](https://godoc.org/github.com/Pungyeon/required) 
+[![Go Report Card](https://goreportcard.com/badge/github.com/Pungyeon/required)](https://goreportcard.com/report/github.com/Pungyeon/required)  
+
 ## Introduction
 Long story short, a junior engineer at work asked me (a long time ago now). How to make `JSON` fields required. I didn't have a good answer for him, and after some short research it turns out that there isn't a good answer for this!
 

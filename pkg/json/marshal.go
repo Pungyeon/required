@@ -1,6 +1,7 @@
 package json
 
 import (
+	stdjson "encoding/json"
 	"bytes"
 	"errors"
 	"fmt"

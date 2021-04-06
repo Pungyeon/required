@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-
 type FloatChecker struct {
 	Thing Float `json:"thing"`
 }
@@ -24,7 +23,6 @@ func TestNewFloat(t *testing.T) {
 		t.Fatalf("%v != %v", b.Value(), v.Value())
 	}
 }
-
 
 func TestFloatValidation(t *testing.T) {
 	tt := []struct {
@@ -45,7 +43,6 @@ func TestFloatValidation(t *testing.T) {
 			var checker FloatChecker
 			err := Unmarshal(jsonb, &checker)
 			assertError(t, err, tf.err)
-
 
 			if !tf.assert(checker) {
 				t.Fatalf("Assertion Failed: %+v", checker)
