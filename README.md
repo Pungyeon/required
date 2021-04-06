@@ -78,6 +78,18 @@ func (email Email) IsValueValid() error {
 Refer to samples for a more detailed example of this.
 
 ### Marshalling
-As of writing this document, the library is using the `json` std library functionality for marshalling a type.
+As of writing this document, this library is currently using a custom `json.Marshal` and `json.Encoder`. This library *does not currently support `required` tag checking*, please show your interest, if you would like this by creating a new issue. The `json.Marshal` function is compatible with the standard library functionality. Though, substantially faster:
 
-Hopefully, this will change soon :)
+```
+goos: darwin
+goarch: amd64
+pkg: github.com/Pungyeon/required/pkg/json
+BenchmarkMarshalStd-8             603121              1859 ns/op             752 B/op         12 allocs/op
+BenchmarkMarshalPkg-8             729928              1581 ns/op             832 B/op         10 allocs/op
+PASS
+ok      github.com/Pungyeon/required/pkg/json   2.445s
+```
+
+
+
+

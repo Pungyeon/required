@@ -2,10 +2,9 @@ package json
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io"
 	"reflect"
-	"strconv"
 
 	"github.com/Pungyeon/required/pkg/lexer"
 	"github.com/Pungyeon/required/pkg/required"
@@ -16,14 +15,22 @@ import (
 func Parse(l *lexer.Lexer, v interface{}) error {
 	val := getReflectValue(v)
 	if val.Kind() == reflect.Interface {
-		obj, err := (&parser{lexer: l}).parse(val)
+		p := &parser{lexer: l}
+		obj, err := p.parse(val)
 		if err != nil {
 			return err
 		}
 		val.Set(obj)
 		return nil
 	}
-	return (&parser{lexer: l}).decode(val)
+	p := &parser{lexer: l}
+	if err := p.next(); err != nil {
+		return err
+	}
+	if err := p.decode(val); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *parser) decode(val reflect.Value) error {
@@ -54,6 +61,13 @@ func (p *parser) decode(val reflect.Value) error {
 	return nil
 }
 
+func checkIfEOF(err error) error {
+	if err == io.EOF {
+		return nil
+	}
+	return err
+}
+
 func (p *parser) _decode(val reflect.Value, tags structtag.Tags) error {
 	if val.Kind() == reflect.Interface {
 		obj, err := p.parse(val)
@@ -63,9 +77,8 @@ func (p *parser) _decode(val reflect.Value, tags structtag.Tags) error {
 		val.Set(obj)
 		return nil
 	}
-	p.next()
 
-	if p.current().Type == token.Null {
+	if p.current.Type == token.Null {
 		return nil
 	}
 
@@ -78,42 +91,80 @@ func (p *parser) _decode(val reflect.Value, tags structtag.Tags) error {
 		val.Set(vo)
 		return nil
 	case reflect.Array, reflect.Slice:
-		return p.decodeArray(val)
+		if err := p.decodeArray(val); err != nil {
+			return err
+		}
+		return checkIfEOF(p.next())
 	case reflect.Map:
 		return p.decodeMap(val)
 	case reflect.Struct:
-		return p.decodeObject(val, tags)
+		if err := p.decodeObject(val, tags); err != nil {
+			return err
+		}
+		return checkIfEOF(p.next())
 	case reflect.Int, reflect.Float32, reflect.Float64,
 		reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.String, reflect.Bool: // what about uints?
-		return p.current().SetValueOf(val)
+		if err := p.current.SetValueOf(val); err != nil {
+			return err
+		}
+		return checkIfEOF(p.next())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		n, err := strconv.ParseInt(p.current().ToString(), 10, 64)
+		n, err := token.Ttoi(p.current)
 		if err != nil {
 			return err
 		}
 		val.SetUint(uint64(n))
 		return err
 	}
-	fmt.Printf("unsupported type: %s\n", val.Type()) // TODO : remove this
-	return nil
+	return token.Error(token.ErrInvalidJSON, p.current.ToString())
 }
 
 func (p *parser) decodeObject(val reflect.Value, tags structtag.Tags) error {
-	for p.next() {
-		if p.current().Type == token.Colon {
-			tag := tags.Tags[p.previous().ToString()]
-			if err := p.decode(val.Field(tag.FieldIndex)); err != nil {
-				return err
+	if err := p.next(); err != nil {
+		return checkIfEOF(err)
+	}
+	for {
+		if p.current.Type != token.String {
+			if p.current.Type == token.ClosingCurly {
+				return tags.CheckRequired()
 			}
+			return token.Error(token.ErrInvalidJSON, fmt.Sprintf("expected object field, got: %s", p.current))
+		}
+		field := p.current
+		if err := p.next(); err != nil {
+			return checkIfEOF(err)
+		}
+		if p.current.Type != token.Colon {
+			return token.Error(token.ErrInvalidJSON, fmt.Sprintf("expected colon token: %s", p.current))
+		}
+		if err := p.next(); err != nil {
+			return checkIfEOF(err)
+		}
+		tag := tags.Tags[field.ToString()]
+		if err := p.decode(val.Field(tag.FieldIndex)); err != nil {
+			return err
+		}
+
+		if p.current.Type == token.Null {
+			if err := p.next(); err != nil {
+				return checkIfEOF(err)
+			}
+		} else {
 			tags.Set(tag)
 		}
-		if p.eof() || p.current().Type == token.ClosingCurly {
-			p.next()
-			break
+		if p.current.Type == token.Comma {
+			if err := p.next(); err != nil {
+				return checkIfEOF(err)
+			}
+		} else {
+			if p.current.Type == token.ClosingCurly {
+				return tags.CheckRequired()
+			} else {
+				return token.Error(token.ErrInvalidJSON, fmt.Sprintf("expected closing curly or comma: (%s) -> %s", p.current, p.lexer.Previous()))
+			}
 		}
 	}
-	return tags.CheckRequired()
 }
 
 func grow(arr reflect.Value, i int) reflect.Value {
@@ -133,8 +184,11 @@ func (p *parser) decodeArray(arr reflect.Value) error {
 	}
 
 	var i int
-	for p.next() {
-		switch p.current().Type {
+	for {
+		if err := p.next(); err != nil {
+			return err
+		}
+		switch p.current.Type {
 		case token.Comma:
 			continue // skip commas
 		case token.ClosingBrace:
@@ -152,7 +206,7 @@ func (p *parser) decodeArray(arr reflect.Value) error {
 				}
 			}
 			i++
-			if p.current().Type == token.ClosingBrace {
+			if p.current.Type == token.ClosingBrace {
 				arr.Set(arr.Slice(0, i))
 				return nil
 			}
@@ -166,46 +220,45 @@ func (p *parser) decodeArray(arr reflect.Value) error {
 			arr.Set(grow(arr, i))
 			// Doing this check saves ~12 allocations per op
 			if arr.Type().Elem().Kind() == reflect.Interface {
-				val, err := p.current().AsValue(arr.Type().Elem())
+				val, err := p.current.AsValue(arr.Type().Elem())
 				if err != nil {
 					return err
 				}
 				arr.Index(i).Set(val)
 			} else {
-				if err := p.current().SetValueOf(arr.Index(i)); err != nil {
+				if err := p.current.SetValueOf(arr.Index(i)); err != nil {
 					return err
 				}
 			}
 			i++
 		}
 	}
-	return nil
 }
 
 type parser struct {
 	lexer *lexer.Lexer
 	obj   reflect.Value
-}
-
-func (p *parser) previous() token.Token {
-	return p.lexer.Previous()
-}
-
-func (p *parser) current() token.Token {
-	return p.lexer.Current()
+	current token.Token
+	previous token.Token
 }
 
 func (p *parser) eof() bool {
 	return p.lexer.EOF()
 }
 
-func (p *parser) next() bool {
-	return p.lexer.Next()
+func (p *parser) next() error {
+	var err error
+	p.previous = p.current
+	p.current, err = p.lexer.Next()
+	return err
 }
 
 func (p *parser) parse(vo reflect.Value) (reflect.Value, error) {
-	for p.next() {
-		switch p.current().Type {
+	for {
+		if err := p.next(); err != nil {
+			return vo, checkIfEOF(err)
+		}
+		switch p.current.Type {
 		case token.OpenBrace:
 			return p.parseArray(determineArrayType(vo))
 		case token.OpenCurly:
@@ -214,12 +267,11 @@ func (p *parser) parse(vo reflect.Value) (reflect.Value, error) {
 			return vo, nil
 		default:
 			if vo.Kind() == reflect.Interface {
-				return p.current().AsValue(vo.Type())
+				return p.current.AsValue(vo.Type())
 			}
-			return vo, p.current().SetValueOf(vo)
+			return vo, p.current.SetValueOf(vo)
 		}
 	}
-	return reflect.New(token.ReflectTypeString), nil // shouldn't this be an error?
 }
 
 func (p *parser) parseObject(vo reflect.Value) (reflect.Value, error) {
@@ -256,23 +308,28 @@ func insertAt(arr reflect.Value, i int, val reflect.Value) reflect.Value {
 }
 
 func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
-	arr := reflect.MakeSlice(sliceType, 3, 3)
-	val := reflect.New(sliceType.Elem()).Elem()
-	var i int
-	for p.next() {
-		switch p.current().Type {
+	var (
+		arr = reflect.MakeSlice(sliceType, 3, 3)
+		val = reflect.New(sliceType.Elem()).Elem()
+		i int
+	)
+	for {
+		if err := p.next(); err != nil {
+			return arr.Slice(0, i), checkIfEOF(err)
+		}
+		switch p.current.Type {
 		case token.Comma:
 			continue // skip commas
 		case token.ClosingBrace:
 			return arr.Slice(0, i), nil
 		case token.OpenCurly:
-			val, err := p.parseMap(val.Type())
+			inner, err := p.parseMap(val.Type())
 			if err != nil {
-				return val, err
+				return arr, err
 			}
-			arr = insertAt(arr, i, val)
+			arr = insertAt(arr, i, inner)
 			i++
-			if p.current().Type == token.ClosingBrace {
+			if p.current.Type == token.ClosingBrace {
 				return arr.Slice(0, i), nil
 			}
 		case token.OpenBrace:
@@ -286,12 +343,12 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 			// Doing this check saves ~12 allocations per op
 			if sliceType.Elem().Kind() == reflect.Interface {
 				var err error
-				val, err = p.current().AsValue(sliceType.Elem())
+				val, err = p.current.AsValue(sliceType.Elem())
 				if err != nil {
 					return val, nil
 				}
 			} else {
-				if err := p.current().SetValueOf(val); err != nil {
+				if err := p.current.SetValueOf(val); err != nil {
 					return val, nil
 				}
 			}
@@ -299,7 +356,6 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 			i++
 		}
 	}
-	return arr.Slice(0, i), nil
 }
 
 func getValueOfPointer(vo reflect.Value) reflect.Value {
@@ -326,9 +382,13 @@ func (p *parser) parseStructure(vo reflect.Value) error {
 	if vo.Kind() == reflect.Ptr {
 		return p.parsePointerObject(vo)
 	}
-	for p.next() {
-		if p.current().Type == token.Colon {
-			tag := tags.Tags[p.previous().ToString()]
+	for {
+		if err := p.next(); err != nil {
+			return checkIfEOF(err)
+		}
+
+		if p.current.Type == token.Colon {
+			tag := tags.Tags[p.previous.ToString()]
 			obj := vo.Field(tag.FieldIndex)
 			if !obj.CanSet() { // Private values may not be set.
 				continue
@@ -340,12 +400,13 @@ func (p *parser) parseStructure(vo reflect.Value) error {
 			tags.Set(tag) // TODO : Make sure to not set this, if the token is a NullToken
 			obj.Set(val)
 		}
-		if p.eof() || p.current().Type == token.ClosingCurly {
-			p.next()
+		if p.eof() || p.current.Type == token.ClosingCurly {
+			if err := p.next(); err != nil {
+				return checkIfEOF(err)
+			}
 			return tags.CheckRequired()
 		}
 	}
-	return tags.CheckRequired()
 }
 
 func getReflectValue(v interface{}) reflect.Value {
@@ -369,10 +430,12 @@ func (p *parser) decodeMap(vmap reflect.Value) error {
 		vmap.Set(reflect.MakeMap(reflect.MapOf(token.ReflectTypeString, vmap.Type().Elem())))
 	}
 
-	for p.next() {
-		if p.current().Type == token.ClosingCurly {
-			p.next()
-			break
+	for {
+		if err := p.next(); err != nil {
+			return checkIfEOF(err)
+		}
+		if p.current.Type == token.ClosingCurly {
+			return checkIfEOF(p.next())
 		}
 		err = p.setField(field)
 		if err != nil {
@@ -384,7 +447,6 @@ func (p *parser) decodeMap(vmap reflect.Value) error {
 		}
 		vmap.SetMapIndex(field, val)
 	}
-	return nil
 }
 
 func (p *parser) parseMap(valueType reflect.Type) (reflect.Value, error) {
@@ -396,10 +458,14 @@ func (p *parser) parseMap(valueType reflect.Type) (reflect.Value, error) {
 
 	vmap := reflect.MakeMap(reflect.MapOf(token.ReflectTypeString, valueType))
 
-	for p.next() {
-		if p.current().Type == token.ClosingCurly {
-			p.next()
-			break
+	for {
+		if err := p.next(); err != nil {
+			return vmap, checkIfEOF(err)
+		}
+		if p.current.Type == token.ClosingCurly {
+			if err := p.next(); err != nil {
+				return vmap, checkIfEOF(err)
+			}
 		}
 		err = p.setField(field)
 		if err != nil {
@@ -411,14 +477,15 @@ func (p *parser) parseMap(valueType reflect.Type) (reflect.Value, error) {
 		}
 		vmap.SetMapIndex(field, val)
 	}
-	return vmap, nil
 }
 
 func (p *parser) setField(val reflect.Value) error {
-	for p.next() {
-		if p.current().Type == token.Colon {
-			return p.previous().SetValueOf(val)
+	for {
+		if err := p.next(); err != nil {
+			return checkIfEOF(err)
+		}
+		if p.current.Type == token.Colon {
+			return p.previous.SetValueOf(val)
 		}
 	}
-	return errors.New("could not parse field")
 }

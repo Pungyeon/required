@@ -2,6 +2,7 @@ package token
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -12,6 +13,8 @@ var (
 	Tab       byte = '\t'
 	NewLine   byte = '\n'
 	Quotation byte = '"'
+
+	ErrValueMismatch = errors.New("cannot set value of specified variable")
 )
 
 var (
@@ -20,7 +23,47 @@ var (
 	ReflectTypeFloat     = reflect.TypeOf(3.2)
 	ReflectTypeInterface = reflect.ValueOf(map[string]interface{}{}).Type().Elem()
 	ReflectTypeBool      = reflect.TypeOf(true)
+
+	ErrInvalidValue = errors.New("invalid token value")
+	ErrInvalidJSON  = errors.New("invalid json")
+	ErrUnmatchedBrace = errors.New("unmatched brace found")
+	ErrMissingBrace = errors.New("missing closing brace")
+
+	Empty = Token{}
 )
+
+type tokenErr struct {
+	err     error
+	details string
+}
+
+func Error(err error, details string) error {
+	return tokenErr{err, details}
+}
+
+func (err tokenErr) Error() string {
+	return fmt.Sprintf("%v: %v", err.err, err.details)
+}
+
+func (err tokenErr) Unwrap() error {
+	return err.err
+}
+
+func Ttoi(token Token) (int64, error) {
+	n, err := strconv.ParseInt(token.ToString(), 10, 64)
+	if err != nil {
+		return 0, Error(ErrInvalidValue, fmt.Sprintf("%v: %v", token.String(), err.Error()))
+	}
+	return n, nil
+}
+
+func Ttof(token Token) (float64, error) {
+	n, err := strconv.ParseFloat(token.ToString(), 64)
+	if err != nil {
+		return 0, Error(ErrInvalidValue, fmt.Sprintf("%v: %v", token.String(), err.Error()))
+	}
+	return n, nil
+}
 
 type TokenType int
 
@@ -29,16 +72,19 @@ func (t TokenType) IsEnding() bool {
 		t == ClosingBracket
 }
 
+func (t TokenType) IsOpening() bool {
+	return t == OpenBrace || t == OpenCurly ||
+		t == OpenBracket
+}
+
 const (
 	Unknown TokenType = iota
 	Integer
 	Float
 	String
 	Null
-	Key
 	Colon
 	Comma
-	WhiteSpace
 	OpenBrace
 	ClosingBrace
 	OpenBracket
@@ -48,6 +94,41 @@ const (
 	FullStop
 	Boolean
 )
+
+func (t TokenType) String() string {
+	switch t {
+	case Integer:
+		return "Integer"
+	case Float:
+		return "Float"
+	case String:
+		return "String"
+	case Null:
+		return "Null"
+	case Colon:
+		return "Colon"
+	case Comma:
+		return "Comma"
+	case OpenBrace:
+		return "OpenBrace"
+	case ClosingBrace:
+		return "ClosingBrace"
+	case OpenBracket:
+		return "OpenBracket"
+	case ClosingBracket:
+		return "ClosingBracket"
+	case OpenCurly:
+		return "OpenCurly"
+	case ClosingCurly:
+		return "ClosingCurly"
+	case FullStop:
+		return "FullStop"
+	case Boolean:
+		return "Boolean "
+	default:
+		return fmt.Sprintf("UNKNOWN: %d", t)
+	}
+}
 
 func init() {
 	TokenTypes[':'] = Colon
@@ -62,18 +143,6 @@ func init() {
 }
 
 var TokenTypes = make([]TokenType, 126)
-
-//var TokenTypes = map[byte]TokenType{
-//	':': Colon,
-//	',': Comma,
-//	'[': OpenBrace,
-//	']': ClosingBrace,
-//	'(': OpenBracket,
-//	')': ClosingBracket,
-//	'{': OpenCurly,
-//	'}': ClosingCurly,
-//	'.': FullStop,
-//}
 
 var BraceOpposites = map[byte]byte{
 	'[': ']',
@@ -107,7 +176,7 @@ func (token Token) AsValue(vt reflect.Type) (reflect.Value, error) {
 		val.SetString(string(token.Value))
 		return val, nil
 	case Integer:
-		n, err := strconv.ParseInt(string(token.Value), 10, 64)
+		n, err := Ttoi(token)
 		if err != nil {
 			return val, err
 		}
@@ -121,10 +190,15 @@ func (token Token) AsValue(vt reflect.Type) (reflect.Value, error) {
 		val.SetFloat(f)
 		return val, err
 	case Boolean:
-		if token.Value[0] == 't' {
+		// TODO : this doesn't actually work it will parse any value starting with 'f' and/or 't' as boolean
+		// so "boolean": faulty -> false
+		switch token.Value[0] {
+		case 't':
 			val.SetBool(true)
-		} else {
+		case 'f':
 			val.SetBool(false)
+		default:
+			return val, Error(ErrInvalidValue, token.String())
 		}
 		return val, nil
 	default:
@@ -136,36 +210,43 @@ func (token Token) SetValueOf(val reflect.Value) error {
 	if !val.CanSet() {
 		return nil
 	}
-	switch token.Type {
-	case Null:
-		return nil // don't set anything
-	case String:
+	switch val.Kind() {
+	case reflect.String:
 		val.SetString(token.ToString())
 		return nil
-	case Integer:
-		n, err := strconv.ParseInt(token.ToString(), 10, 64)
+	case reflect.Int, reflect.Int32, reflect.Int64, reflect.Int8, reflect.Int16:
+		n, err := Ttoi(token)
 		if err != nil {
 			return err
 		}
 		val.SetInt(n)
 		return err
-	case Float:
-		f, err := strconv.ParseFloat(token.ToString(), 64)
+	case reflect.Float32, reflect.Float64:
+		f, err := Ttof(token)
 		if err != nil {
 			return err
 		}
 		val.SetFloat(f)
 		return err
-	case Boolean:
-		if token.Value[0] == 't' {
+	case reflect.Bool:
+		// TODO : this doesn't actually work it will parse any value starting with 'f' and/or 't' as boolean
+		// so "boolean": faulty -> false
+		switch token.Value[0] {
+		case 't':
 			val.SetBool(true)
-		} else {
+		case 'f':
 			val.SetBool(false)
+		default:
+			return Error(ErrInvalidValue, token.String())
 		}
 		return nil
-	default:
-		return fmt.Errorf("cannot convert token to value: %v", token)
 	}
+
+	if token.Type == Null {
+		return nil
+	}
+
+	return fmt.Errorf("cannot convert token to value: %v", token)
 }
 
 func (token Token) ToValue() (reflect.Value, error) {
@@ -191,11 +272,16 @@ func (token Token) ToValue() (reflect.Value, error) {
 		val.SetFloat(f)
 		return val, err
 	case Boolean:
+		// TODO : this doesn't actually work it will parse any value starting with 'f' and/or 't' as boolean
+		// so "boolean": faulty -> false
 		val := reflect.New(ReflectTypeBool).Elem()
-		if token.Value[0] == 't' {
+		switch token.Value[0] {
+		case 't':
 			val.SetBool(true)
-		} else {
+		case 'f':
 			val.SetBool(false)
+		default:
+			return val, Error(ErrInvalidValue, token.String())
 		}
 		return val, nil
 	default:
@@ -208,7 +294,7 @@ func (token Token) IsEnding() bool {
 }
 
 func (token Token) String() string {
-	return fmt.Sprintf("%s: %d", token.Value, token.Type)
+	return fmt.Sprintf("[%s](%s)", token.Value, token.Type)
 }
 
 func (token Token) ToString() string {

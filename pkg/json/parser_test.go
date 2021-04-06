@@ -1,11 +1,14 @@
 package json
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"regexp"
 	"strconv"
 	"testing"
+
+	"github.com/Pungyeon/required/pkg/token"
 
 	"github.com/Pungyeon/required/pkg/lexer"
 	"github.com/Pungyeon/required/pkg/structtag"
@@ -124,6 +127,10 @@ func TestParseArrayInStruct(t *testing.T) {
 
 	if obj.Array[2] != 3 {
 		t.Fatal("expected 3:", obj.Array[2])
+	}
+
+	if obj.Array[3] != 4 {
+		t.Fatal("expected 4:", obj.Array[3])
 	}
 }
 
@@ -285,7 +292,6 @@ func testParse(t *testing.T, lexer *lexer.Lexer, v interface{}) {
 }
 
 func TestParseAsReflectValue(t *testing.T) {
-
 	tt := []struct {
 		name  string
 		check func() bool
@@ -375,7 +381,7 @@ func TestParsePointer(t *testing.T) {
 	tokens := LexString(t, `{
 		"object": {
 			"name": "lasse"
-		},
+		}
 	}`)
 
 	var ding Ding
@@ -405,7 +411,7 @@ func TestMapFollowedBy(t *testing.T) {
 	tokens := LexString(t, `{
 	"map_object": {
 		"number": 1,
-			"lumber": 13
+		"lumber": 13
 	},
 	"float": 3.2
 }`)
@@ -453,12 +459,12 @@ func TestRequiredFields(t *testing.T) {
 	}
 
 	var invalidEmail TestUser
-	if err := Parse(LexString(t, `{"email": "dingeling.dk"`), &invalidEmail); err != errEmailRequired {
+	if err := Parse(LexString(t, `{"email": "dingeling.dk"}`), &invalidEmail); err != errEmailRequired {
 		t.Fatal("no required error, or unexpected error returned:", err)
 	}
 
 	var validEmail TestUser
-	if err := Parse(LexString(t, `{"email": "lasse@jakobsen.dev"`), &validEmail); err != nil {
+	if err := Parse(LexString(t, `{"email": "lasse@jakobsen.dev"}`), &validEmail); err != nil {
 		t.Fatal("no required error, or unexpected error returned:", err)
 	}
 }
@@ -534,13 +540,57 @@ func TestCustomMarshaler(t *testing.T) {
 	}
 }
 
+func TestDecoder(t *testing.T) {
+	r := bytes.NewReader([]byte(sample))
+	var ding Ding
+	if err := NewDecoder(r).Decode(&ding); err != nil {
+		t.Fatal(err)
+	}
+	defer recovery(t, ding)
+	if !(ding.Ding == 1 &&
+		ding.Dong == "hello" &&
+		ding.Boolean == true &&
+		ding.Object.Name == "lasse" &&
+		len(ding.Array) == 3) {
+		//ding.StringSlice[2] == "3" &&
+		//ding.MultiDimension[1][2] == 6 &&
+		//ding.ObjectArray[1].Name == "basse" &&
+		//ding.MapObject["lumber"] == 13 &&
+		//ding.Float == 3.2) {
+		t.Fatal(ding)
+	}
+}
+
+func TestInvalidJSON(t *testing.T) {
+	tt := []struct {
+		name string
+		json string
+		err  error
+	}{
+		{"early comma", `{"name",}`, token.ErrInvalidJSON},
+		{"wrong value", `{"ding": "this should be an int64"`, token.ErrInvalidValue},
+		{"unfinished inner array", `{"multi_dimension": [[]`, token.ErrUnmatchedBrace},
+		{"unfinished object", `{"name"}`, token.ErrInvalidJSON},
+		{"not a bool", `{"boolean": "yes"}`, token.ErrInvalidValue},
+	}
+
+	for _, tf := range tt {
+		t.Run(tf.name, func(t *testing.T) {
+			var ding Ding
+			if err := Parse(LexString(t, tf.json), &ding); !errors.Is(err, tf.err) {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestMapArray(t *testing.T) {
 	type MA struct {
 		Array []map[string]int
 	}
 
 	var ma MA
-	if err := Parse(LexString(t, `{ "array": [{ "name": 3 }]`), &ma); err != nil {
+	if err := Parse(LexString(t, `{ "array": [{ "name": 3 }] }`), &ma); err != nil {
 		t.Fatal(err)
 	}
 	if ma.Array[0]["name"] != 3 {
@@ -554,10 +604,27 @@ func TestMapArrayInterface(t *testing.T) {
 	}
 
 	var ma interface{}
-	if err := Parse(LexString(t, `{ "array": [{ "name": 3 }]`), &ma); err != nil {
+	if err := Parse(LexString(t, `{ "array": [{ "name": 3 }] }`), &ma); err != nil {
 		t.Fatal(err)
 	}
-	if ma.(map[string]interface{})["array"].([]interface{})[0].(map[string]interface{})["name"].(int) != 3 {
+	defer func() {
+		r := recover()
+		if r != nil {
+			t.Fatal(r, ma)
+		}
+	}()
+
+	v := ma.(map[string]interface{})["array"].([]interface{})[0].(map[string]interface{})["name"].(int)
+	if v != 3 {
 		t.Fatal(ma)
+	}
+}
+
+func recovery(t *testing.T, v interface{}) {
+	t.Helper()
+	if r := recover(); r != nil {
+		t.Error("recovered from panic:")
+		t.Error(v)
+		t.Fatal(r)
 	}
 }

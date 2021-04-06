@@ -1,44 +1,47 @@
 package lexer
 
 import (
-	"errors"
+	"io"
+	"io/ioutil"
 
 	"github.com/Pungyeon/required/pkg/token"
 )
 
-var (
-	errInvalidJSONString = errors.New("invalid JSON string")
-)
-
-type Result struct {
-	Token token.Token
-	Error error
+type Lexer struct {
+	index    int
+	input    []byte
+	stack *Stack
 }
 
-type ILexer interface {
-	EOF() bool
-	Previous() token.Token
-	Current() token.Token
-	Next() bool
+func NewLexerReader(r io.Reader) (*Lexer, error) {
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	return NewLexer(data), nil
 }
 
 func NewLexer(input []byte) *Lexer {
 	return &Lexer{
 		input: input,
 		index: -1,
+		stack: NewStack(10),
 	}
+}
+
+func (l *Lexer) Previous() string {
+	return string(l.input[max(0, l.index-100):l.index])
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func (l *Lexer) EOF() bool {
 	return l.index >= len(l.input)
-}
-
-func (l *Lexer) Previous() token.Token {
-	return l.previous
-}
-
-func (l *Lexer) Current() token.Token {
-	return l.current
 }
 
 func (l *Lexer) SkipValue() []byte {
@@ -118,86 +121,41 @@ var (
 	NULL  = []byte("null")
 )
 
-func (l *Lexer) Next() bool {
+func (l *Lexer) Next() (token.Token, error) {
 	if !l.next() {
-		return false // should be eof error?
+		return token.Empty, l.isValid()
 	}
 	switch l.value() {
 	case token.Space, token.Tab, token.NewLine:
 		return l.Next()
 	case token.Quotation:
-		t, err := l.readString()
-		if err != nil {
-			panic(errInvalidJSONString) // TODO : no panic plox
-		}
-		return l.assign(t)
+		return l.readString()
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		t, err := l.readNumber()
-		if err != nil {
-			panic(errInvalidJSONString) // TODO : no panic plox
-		}
+		t := l.readNumber()
 		l.index--
-		return l.assign(t)
+		return t, nil
 	case 't':
 		l.index += len("rue")
-		l.assign(token.Token{Value: TRUE, Type: token.Boolean})
-		return true
+		return token.Token{Value: TRUE, Type: token.Boolean}, nil
 	case 'f':
 		l.index += len("alse")
-		return l.assign(token.Token{Value: FALSE, Type: token.Boolean})
+		return token.Token{Value: FALSE, Type: token.Boolean}, nil
 	case 'n':
 		l.index += len("ull")
-		return l.assign(token.Token{Value: NULL, Type: token.Null})
+		return token.Token{Value: NULL, Type: token.Null}, nil
 	default:
-		return l.assign(token.NewToken(l.input, l.index))
-	}
-}
-
-func Lex(input string) (token.Tokens, error) {
-	l := &Lexer{
-		input: []byte(input),
-		index: -1,
-	}
-
-	for l.next() {
-		switch l.value() {
-		case token.Space, token.Tab, token.NewLine:
-			continue
-		case token.Quotation:
-			t, err := l.readString()
-			if err != nil {
-				return token.Tokens{}, errInvalidJSONString
-			}
-			l.output = append(l.output, t)
-		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-			t, err := l.readNumber()
-			if err != nil {
-				return token.Tokens{}, errInvalidJSONString
-			}
-			l.output = append(l.output, t)
-			l.index--
-		case 't':
-			l.output = append(l.output, token.Token{Value: TRUE, Type: token.Boolean})
-			l.index += len("rue")
-		case 'f':
-			l.output = append(l.output, token.Token{Value: FALSE, Type: token.Boolean})
-			l.index += len("alse")
-		case 'n':
-			l.output = append(l.output, token.Token{Value: NULL, Type: token.Null})
-			l.index += len("ull")
-		default:
-			l.output = append(l.output, token.NewToken(l.input, l.index))
+		t := token.NewToken(l.input, l.index)
+		if t.Type.IsOpening() {
+			l.stack.Push(l.value())
 		}
+		if t.Type.IsEnding() {
+			opposite := l.stack.Pop()
+			if token.BraceOpposites[opposite] != t.Value[0] {
+				return t, token.Error(token.ErrUnmatchedBrace, string(l.input[:l.index]))
+			}
+		}
+		return t, nil
 	}
-	return l.output, nil
-}
-
-type Lexer struct {
-	current  token.Token
-	previous token.Token
-	index    int
-	input    []byte
-	output   []token.Token
 }
 
 func (l *Lexer) next() bool {
@@ -209,13 +167,7 @@ func (l *Lexer) value() byte {
 	return l.input[l.index]
 }
 
-func (l *Lexer) assign(t token.Token) bool {
-	l.previous = l.current
-	l.current = t
-	return true
-}
-
-func (l *Lexer) readNumber() (token.Token, error) {
+func (l *Lexer) readNumber() token.Token {
 	tokenType := token.Integer
 	start := l.index
 	for l.next() {
@@ -227,13 +179,13 @@ func (l *Lexer) readNumber() (token.Token, error) {
 			return token.Token{
 				Value: l.input[start:l.index],
 				Type:  tokenType,
-			}, nil
+			}
 		}
 	}
 	return token.Token{
 		Value: l.input[start:l.index],
 		Type:  tokenType,
-	}, nil
+	}
 }
 
 func (l *Lexer) readString() (token.Token, error) {
@@ -246,5 +198,12 @@ func (l *Lexer) readString() (token.Token, error) {
 			}, nil
 		}
 	}
-	return token.Token{}, errors.New("unexpected end of file, trying to read string")
+	return token.Empty, token.Error(token.ErrInvalidJSON, string(l.input[:l.index]))
+}
+
+func (l *Lexer) isValid() error {
+	if l.stack.IsEmpty() {
+		return io.EOF
+	}
+	return token.Error(token.ErrUnmatchedBrace, l.Previous())
 }
