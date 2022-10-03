@@ -8,8 +8,8 @@ import (
 )
 
 type Lexer struct {
-	index    int
-	input    []byte
+	index int
+	input []byte
 	stack *Stack
 }
 
@@ -55,6 +55,7 @@ func (l *Lexer) SkipValue() []byte {
 		start   = l.index
 		opening byte
 	)
+
 	if l.value() == '"' {
 		t, err := l.readString()
 		if err != nil {
@@ -83,7 +84,7 @@ func (l *Lexer) SkipValue() []byte {
 		}
 	}
 	if l.input[start] == '"' {
-
+		// TODO what in the world???
 	}
 
 	if l.input[l.index-1] == '}' {
@@ -167,6 +168,10 @@ func (l *Lexer) value() byte {
 	return l.input[l.index]
 }
 
+func (l *Lexer) previous() byte {
+	return l.input[l.index-1]
+}
+
 func (l *Lexer) readNumber() token.Token {
 	tokenType := token.Integer
 	start := l.index
@@ -191,7 +196,7 @@ func (l *Lexer) readNumber() token.Token {
 func (l *Lexer) readString() (token.Token, error) {
 	start := l.index + 1
 	for l.next() {
-		if l.value() == token.Quotation {
+		if l.value() == token.Quotation && l.previous() != token.Escape {
 			return token.Token{
 				Value: l.input[start:l.index],
 				Type:  token.String,

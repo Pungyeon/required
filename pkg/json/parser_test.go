@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 	"testing"
@@ -627,4 +628,39 @@ func recovery(t *testing.T, v interface{}) {
 		t.Error(v)
 		t.Fatal(r)
 	}
+}
+
+func TestEscapedCharacters(t *testing.T) {
+	var ma interface{}
+	if err := Parse(LexString(t, `"{\"ding\": 3}"`), &ma); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		r := recover()
+		if r != nil {
+			t.Fatal(r, ma)
+		}
+	}()
+
+	fmt.Println(ma)
+}
+
+func TestNonExistingField(t *testing.T) {
+	var c C
+	lex := LexString(t, `{"ding": 3}`)
+	if err := Parse(lex, &c); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		r := recover()
+		if r != nil {
+			t.Fatal(r, c)
+		}
+	}()
+
+	fmt.Println(c)
+}
+
+type C struct {
+	Data map[string]interface{} `json:"data"`
 }
