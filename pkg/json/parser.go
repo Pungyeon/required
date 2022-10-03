@@ -143,7 +143,11 @@ func (p *parser) decodeObject(val reflect.Value, tags structtag.Tags) error {
 		}
 		tag := tags.Tags[field.ToString()]
 		if err := p.decode(val.Field(tag.FieldIndex)); err != nil {
-			return err
+			return checkIfEOF(err)
+		}
+
+		if p.lexer.EOF() {
+			return nil
 		}
 
 		if p.current.Type == token.Null {
@@ -236,9 +240,9 @@ func (p *parser) decodeArray(arr reflect.Value) error {
 }
 
 type parser struct {
-	lexer *lexer.Lexer
-	obj   reflect.Value
-	current token.Token
+	lexer    *lexer.Lexer
+	obj      reflect.Value
+	current  token.Token
 	previous token.Token
 }
 
@@ -293,6 +297,9 @@ func determineObjectType(vo reflect.Value) (reflect.Kind, reflect.Type) {
 }
 
 func determineArrayType(vo reflect.Value) reflect.Type {
+	//if vo.Kind() != reflect.Slice {
+	//	return reflect.ValueOf([]interface{}{}).Type()
+	//}
 	if vo.Kind() == reflect.Interface {
 		return reflect.ValueOf([]interface{}{}).Type()
 	}
@@ -311,7 +318,7 @@ func (p *parser) parseArray(sliceType reflect.Type) (reflect.Value, error) {
 	var (
 		arr = reflect.MakeSlice(sliceType, 3, 3)
 		val = reflect.New(sliceType.Elem()).Elem()
-		i int
+		i   int
 	)
 	for {
 		if err := p.next(); err != nil {
@@ -378,6 +385,10 @@ func (p *parser) parseStructure(vo reflect.Value) error {
 	tags, err := structtag.FromValue(vo)
 	if err != nil {
 		return err
+	}
+	// Ignore the field, as it's not definted on the given structure
+	if len(tags.Tags) == 0 {
+		return nil
 	}
 	if vo.Kind() == reflect.Ptr {
 		return p.parsePointerObject(vo)

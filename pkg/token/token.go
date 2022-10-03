@@ -13,6 +13,7 @@ var (
 	Tab       byte = '\t'
 	NewLine   byte = '\n'
 	Quotation byte = '"'
+	Escape    byte = '\\'
 
 	ErrValueMismatch = errors.New("cannot set value of specified variable")
 )
@@ -24,10 +25,10 @@ var (
 	ReflectTypeInterface = reflect.ValueOf(map[string]interface{}{}).Type().Elem()
 	ReflectTypeBool      = reflect.TypeOf(true)
 
-	ErrInvalidValue = errors.New("invalid token value")
-	ErrInvalidJSON  = errors.New("invalid json")
+	ErrInvalidValue   = errors.New("invalid token value")
+	ErrInvalidJSON    = errors.New("invalid json")
 	ErrUnmatchedBrace = errors.New("unmatched brace found")
-	ErrMissingBrace = errors.New("missing closing brace")
+	ErrMissingBrace   = errors.New("missing closing brace")
 
 	Empty = Token{}
 )
