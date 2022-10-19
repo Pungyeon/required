@@ -647,10 +647,12 @@ func TestEscapedCharacters(t *testing.T) {
 
 func TestNonExistingField(t *testing.T) {
 	var c C
-	lex := LexString(t, `{"ding": 3}`)
+
+	lex := LexString(t, `{"ding": 3, "data": { "number": 5 }}`)
 	if err := Parse(lex, &c); err != nil {
 		t.Fatal(err)
 	}
+
 	defer func() {
 		r := recover()
 		if r != nil {
@@ -658,7 +660,9 @@ func TestNonExistingField(t *testing.T) {
 		}
 	}()
 
-	fmt.Println(c)
+	if c.Data["number"] != 5 {
+		t.Fatal(c.Data)
+	}
 }
 
 type C struct {
