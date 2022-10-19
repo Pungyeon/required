@@ -40,7 +40,8 @@ func (tags Tags) Reset() {
 }
 
 func FromValue(vo reflect.Value) (Tags, error) {
-	if tags, ok := cache[vo.Type()]; ok {
+	to := vo.Type()
+	if tags, ok := cache[to]; ok {
 		tags.Reset()
 		return tags, nil
 	}
@@ -55,13 +56,16 @@ func FromValue(vo reflect.Value) (Tags, error) {
 			_, tags.UnmarshalInterface = vo.Interface().(json.Unmarshaler)
 		}
 	}
-	if vo.Kind() != reflect.Struct {
-		cache[vo.Type()] = tags
+	if to.Kind() == reflect.Ptr {
+		to = to.Elem()
+	}
+	if to.Kind() != reflect.Struct {
+		cache[to] = tags
 		return tags, nil
 	}
 
-	for i := 0; i < vo.NumField(); i++ {
-		f := vo.Type().Field(i)
+	for i := 0; i < to.NumField(); i++ {
+		f := to.Field(i)
 		jsonTag, ok := f.Tag.Lookup("json")
 		if !ok {
 			tags.Tags[toSnakeCase(f.Name)] = Tag{
@@ -76,7 +80,7 @@ func FromValue(vo reflect.Value) (Tags, error) {
 			tags.Tags[tag.FieldName] = tag
 		}
 	}
-	cache[vo.Type()] = tags
+	cache[to] = tags
 	return tags, nil
 }
 

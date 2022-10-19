@@ -141,7 +141,14 @@ func (p *parser) decodeObject(val reflect.Value, tags structtag.Tags) error {
 		if err := p.next(); err != nil {
 			return checkIfEOF(err)
 		}
-		tag := tags.Tags[field.ToString()]
+		tag, ok := tags.Tags[field.ToString()]
+		if !ok {
+			p.lexer.SkipValue()
+			if err := p.next(); err != nil {
+				return checkIfEOF(err)
+			}
+			continue
+		}
 		if err := p.decode(val.Field(tag.FieldIndex)); err != nil {
 			return checkIfEOF(err)
 		}
@@ -386,7 +393,7 @@ func (p *parser) parseStructure(vo reflect.Value) error {
 	if err != nil {
 		return err
 	}
-	// Ignore the field, as it's not definted on the given structure
+	// Ignore the field, as it's not defined on the given structure
 	if len(tags.Tags) == 0 {
 		return nil
 	}
